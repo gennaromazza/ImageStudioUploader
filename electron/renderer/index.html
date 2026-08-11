@@ -1,0 +1,343 @@
+﻿<!doctype html>
+<html lang="it">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Image Studio Uploader</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="hero">
+        <p class="eyebrow">IMAGE STUDIO</p>
+        <h1>Uploader Gallerie Desktop</h1>
+        <p class="subtitle">Gestisci gallerie e carica foto senza terminale.</p>
+      </header>
+
+      <main class="content-grid">
+        <section class="panel main-panel">
+          <div class="tabs" role="tablist">
+            <button class="tab-button active" data-tab="existing" role="tab" aria-selected="true">Galleria esistente</button>
+            <button class="tab-button" data-tab="new" role="tab" aria-selected="false">Nuova galleria</button>
+          </div>
+
+          <div id="tab-existing" class="tab-content active" role="tabpanel">
+            <div class="toolbar">
+              <input id="gallery-search" type="text" placeholder="Cerca per nome, codice, data..." />
+              <button id="refresh-galleries" class="btn secondary">Aggiorna</button>
+            </div>
+
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Nome</th>
+                    <th>Data</th>
+                    <th>Codice</th>
+                    <th>Foto</th>
+                  </tr>
+                </thead>
+                <tbody id="gallery-list"></tbody>
+              </table>
+            </div>
+
+            <div class="row split">
+              <div>
+                <label for="existing-folder">Cartella foto</label>
+                <div class="input-row">
+                  <input id="existing-folder" type="text" placeholder="Seleziona cartella..." readonly />
+                  <button id="pick-existing-folder" class="btn secondary">Sfoglia</button>
+                </div>
+              </div>
+
+              <div class="checkbox-row">
+                <input id="skip-duplicates" type="checkbox" checked />
+                <label for="skip-duplicates">Salta duplicati (stesso nome file)</label>
+              </div>
+            </div>
+
+            <div class="subpanel">
+              <h3>Copertine Galleria</h3>
+              <div class="form-grid">
+                <div>
+                  <label for="existing-cover-desktop">Copertina Desktop (16:9)</label>
+                  <div class="input-row">
+                    <input id="existing-cover-desktop" type="text" placeholder="Seleziona immagine..." readonly />
+                    <button id="pick-existing-cover-desktop" class="btn secondary">Sfoglia</button>
+                  </div>
+                  <img id="existing-cover-desktop-preview" class="cover-preview hidden" alt="Anteprima copertina desktop" />
+                </div>
+                <div>
+                  <label for="existing-cover-mobile">Copertina Mobile (9:16)</label>
+                  <div class="input-row">
+                    <input id="existing-cover-mobile" type="text" placeholder="Seleziona immagine..." readonly />
+                    <button id="pick-existing-cover-mobile" class="btn secondary">Sfoglia</button>
+                  </div>
+                  <img id="existing-cover-mobile-preview" class="cover-preview hidden" alt="Anteprima copertina mobile" />
+                </div>
+              </div>
+            </div>
+
+            <div class="subpanel">
+              <h3>Associazione cliente e job della galleria selezionata</h3>
+              <div class="form-grid">
+                <div>
+                  <label for="existing-client-search">Ricerca cliente</label>
+                  <div class="input-row">
+                    <input id="existing-client-search" type="text" placeholder="Nome, cognome, email..." />
+                    <button id="existing-search-client-btn" class="btn secondary" type="button">Cerca</button>
+                  </div>
+                </div>
+                <div>
+                  <label for="existing-client-results">Cliente</label>
+                  <select id="existing-client-results"></select>
+                </div>
+                <div>
+                  <label for="existing-client-name">Nome cliente</label>
+                  <input id="existing-client-name" type="text" />
+                </div>
+                <div>
+                  <label for="existing-client-email">Email cliente</label>
+                  <input id="existing-client-email" type="email" />
+                </div>
+                <div>
+                  <label for="existing-client-phone">Telefono WhatsApp</label>
+                  <input id="existing-client-phone" type="text" />
+                </div>
+                <div>
+                  <label for="existing-job-select">Job</label>
+                  <select id="existing-job-select"></select>
+                  <p id="existing-job-filter-status" class="muted compact-text">Seleziona una galleria.</p>
+                </div>
+              </div>
+              <div class="actions compact">
+                <button id="save-existing-associations" class="btn secondary" type="button">Salva associazioni</button>
+              </div>
+            </div>
+
+            <div class="actions">
+              <button id="upload-existing" class="btn primary">Carica su galleria selezionata</button>
+              <button id="share-existing-whatsapp" class="btn secondary">Condividi su WhatsApp</button>
+            </div>
+          </div>
+
+          <div id="tab-new" class="tab-content" role="tabpanel">
+            <div class="form-grid">
+              <div>
+                <label for="new-name">Nome galleria *</label>
+                <input id="new-name" type="text" placeholder="Es. Matrimonio Rossi" />
+              </div>
+              <div>
+                <label for="new-date">Data evento</label>
+                <input id="new-date" type="text" placeholder="gg/mm/aaaa" />
+              </div>
+              <div>
+                <label for="new-location">Luogo</label>
+                <input id="new-location" type="text" placeholder="Es. Roma" />
+              </div>
+              <div>
+                <label for="new-description">Descrizione</label>
+                <input id="new-description" type="text" placeholder="Descrizione galleria..." />
+              </div>
+              <div>
+                <label for="new-folder">Cartella foto *</label>
+                <div class="input-row">
+                  <input id="new-folder" type="text" placeholder="Seleziona cartella..." readonly />
+                  <button id="pick-new-folder" class="btn secondary">Sfoglia</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="subpanel" id="chapters-panel">
+              <div class="section-heading">
+                <div>
+                  <h3>Capitoli</h3>
+                  <p class="muted compact-text">Le sottocartelle diventano capitoli. Puoi rinominarli, descriverli e cambiarne l'ordine prima dell'upload.</p>
+                </div>
+                <button id="analyze-new-folders" class="btn secondary" type="button">Analizza cartelle</button>
+              </div>
+              <p id="chapters-summary" class="muted">Seleziona una o piu cartelle per vedere i capitoli.</p>
+              <div id="chapters-editor" class="chapters-editor"></div>
+            </div>
+
+            <div class="subpanel">
+              <h3>Copertine Galleria</h3>
+              <div class="form-grid">
+                <div>
+                  <label for="new-cover-desktop">Copertina Desktop (16:9)</label>
+                  <div class="input-row">
+                    <input id="new-cover-desktop" type="text" placeholder="Seleziona immagine..." readonly />
+                    <button id="pick-new-cover-desktop" class="btn secondary">Sfoglia</button>
+                  </div>
+                  <img id="new-cover-desktop-preview" class="cover-preview hidden" alt="Anteprima copertina desktop" />
+                </div>
+                <div>
+                  <label for="new-cover-mobile">Copertina Mobile (9:16)</label>
+                  <div class="input-row">
+                    <input id="new-cover-mobile" type="text" placeholder="Seleziona immagine..." readonly />
+                    <button id="pick-new-cover-mobile" class="btn secondary">Sfoglia</button>
+                  </div>
+                  <img id="new-cover-mobile-preview" class="cover-preview hidden" alt="Anteprima copertina mobile" />
+                </div>
+              </div>
+            </div>
+
+            <div class="subpanel">
+              <h3>Accesso</h3>
+              <div class="form-grid">
+                <div>
+                  <label for="access-mode">Modalita</label>
+                  <select id="access-mode">
+                    <option value="public">Pubblica</option>
+                    <option value="password">Password</option>
+                    <option value="theme">Tema + PIN</option>
+                  </select>
+                </div>
+                <div>
+                  <label for="access-password">Password</label>
+                  <input id="access-password" type="text" placeholder="Solo se modalita password" />
+                </div>
+                <div>
+                  <label for="access-theme">Tema speciale</label>
+                  <select id="access-theme"></select>
+                </div>
+                <div>
+                  <label for="access-pin">PIN speciale</label>
+                  <input id="access-pin" type="text" placeholder="Almeno 4 caratteri alfanumerici" />
+                </div>
+              </div>
+            </div>
+
+            <div class="subpanel">
+              <h3>Cliente e Job</h3>
+              <div class="form-grid">
+                <div>
+                  <label for="client-search">Ricerca cliente</label>
+                  <div class="input-row">
+                    <input id="client-search" type="text" placeholder="Nome, cognome, email..." />
+                    <button id="search-client-btn" class="btn secondary">Cerca</button>
+                  </div>
+                </div>
+                <div>
+                  <label for="client-results">Risultati cliente</label>
+                  <select id="client-results"></select>
+                </div>
+                <div>
+                  <label for="client-name">Nome cliente</label>
+                  <input id="client-name" type="text" placeholder="Nome visualizzato nei messaggi" />
+                </div>
+                <div>
+                  <label for="client-email">Email cliente</label>
+                  <input id="client-email" type="email" placeholder="email@cliente.com" />
+                </div>
+                <div>
+                  <label for="client-phone">Telefono WhatsApp</label>
+                  <input id="client-phone" type="text" placeholder="Es. 3331234567" />
+                </div>
+                <div>
+                  <label for="job-select">Job</label>
+                  <select id="job-select"></select>
+                  <p id="job-filter-status" class="muted compact-text">Seleziona un cliente per vedere i job associati.</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="subpanel">
+              <h3>Selezione Foto e Video</h3>
+              <div class="form-grid">
+                <div class="checkbox-row">
+                  <input id="selection-enabled" type="checkbox" />
+                  <label for="selection-enabled">Abilita selezione foto cliente</label>
+                </div>
+                <div>
+                  <label for="selection-mode">Modalita selezione</label>
+                  <select id="selection-mode">
+                    <option value="like">Like</option>
+                    <option value="dislike">Dislike</option>
+                  </select>
+                </div>
+                <div class="checkbox-row">
+                  <input id="selection-unlimited" type="checkbox" />
+                  <label for="selection-unlimited">Selezione libera (illimitata)</label>
+                </div>
+                <div>
+                  <label for="selection-count">Numero foto da selezionare</label>
+                  <input id="selection-count" type="number" min="0" value="0" />
+                </div>
+                <div>
+                  <label for="selection-deadline">Scadenza selezione</label>
+                  <input id="selection-deadline" type="date" />
+                </div>
+                <div>
+                  <label for="youtube-urls">YouTube URL (uno per riga)</label>
+                  <textarea id="youtube-urls" rows="4" placeholder="https://youtube.com/..."></textarea>
+                </div>
+              </div>
+            </div>
+
+            <div class="actions">
+              <button id="upload-new" class="btn primary">Crea galleria e carica foto</button>
+            </div>
+          </div>
+        </section>
+
+        <aside class="panel side-panel">
+          <h2>Stato Upload</h2>
+          <p id="status-text" class="muted">Nessun upload in corso.</p>
+          <p id="phase-text" class="muted">Fase: inattiva</p>
+
+          <div class="progress-wrap">
+            <div id="progress-bar" class="progress-bar"></div>
+          </div>
+          <p id="progress-stats" class="mono">0 / 0</p>
+          <p id="eta-text" class="mono">ETA: --</p>
+          <div class="timeline">
+            <h3>Timeline</h3>
+            <div class="timeline-row">
+              <span>Compressi</span>
+              <strong id="timeline-compressed">0</strong>
+            </div>
+            <div class="timeline-row">
+              <span>Caricati</span>
+              <strong id="timeline-uploaded">0</strong>
+            </div>
+            <div class="timeline-row">
+              <span>In coda</span>
+              <strong id="timeline-queued">0</strong>
+            </div>
+          </div>
+
+          <div id="summary" class="summary hidden"></div>
+
+          <div class="actions compact">
+            <button id="cancel-upload" class="btn danger" disabled>Annulla upload</button>
+          </div>
+
+          <div class="error-box">
+            <h3>Errori</h3>
+            <ul id="error-list"></ul>
+          </div>
+        </aside>
+      </main>
+    </div>
+
+    <div id="duplicate-modal" class="modal hidden" aria-hidden="true">
+      <div class="modal-card">
+        <h3>Possibili duplicati trovati</h3>
+        <p id="duplicate-modal-summary" class="muted"></p>
+        <div id="duplicate-modal-grid" class="duplicate-grid"></div>
+        <details>
+          <summary>Elenco file con stesso nome</summary>
+          <ul id="duplicate-modal-list" class="duplicate-list"></ul>
+        </details>
+        <div class="actions">
+          <button id="duplicate-cancel" class="btn secondary">Annulla</button>
+          <button id="duplicate-upload-all" class="btn secondary">Carica tutto comunque</button>
+          <button id="duplicate-skip" class="btn primary">Salta duplicati e continua</button>
+        </div>
+      </div>
+    </div>
+
+    <script src="./renderer.js"></script>
+  </body>
+</html>

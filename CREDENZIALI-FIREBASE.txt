@@ -1,0 +1,32 @@
+CONFIGURAZIONE CREDENZIALI FIREBASE (OBBLIGATORIA)
+===================================================
+
+Da questa versione le credenziali NON sono piu hardcoded nel codice.
+
+Installazione tramite Setup:
+- Se `firebase-service-account.json` e nella stessa cartella del Setup.exe,
+  durante l'installazione viene copiato automaticamente accanto
+  all'eseguibile installato (`$INSTDIR\\firebase-service-account.json`).
+- Dopo installazione puoi cancellare il JSON dalla cartella del Setup.
+
+Opzioni supportate:
+
+1) File JSON esterno (consigliato)
+   - Crea/copi un file: firebase-service-account.json
+   - Mettilo in uno dei percorsi letti dall'app:
+     a) accanto all'eseguibile `Image Studio Uploader.exe`
+     b) `%ProgramData%\\ImageStudioUploader\\firebase-service-account.json`
+     c) `%LocalAppData%\\ImageStudioUploader\\firebase-service-account.json`
+
+2) Variabile ambiente con percorso file
+   - FIREBASE_SERVICE_ACCOUNT_FILE=C:\percorso\firebase-service-account.json
+
+3) Variabile ambiente con JSON inline
+   - FIREBASE_SERVICE_ACCOUNT_JSON={...json completo...}
+
+Template:
+- Usa config/firebase-service-account.example.json come traccia.
+
+Nota:
+- Non distribuire mai il file di credenziali nel pacchetto installer.
+- Il build include solo il template di esempio.
