@@ -20,7 +20,9 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: npm run test:syntax
-      - run: npm run build:win
+      # Un tag induce electron-builder a tentare la pubblicazione implicita.
+      # La release viene gestita separatamente e questo job deve solo verificare la build.
+      - run: npm run build:win -- --publish never
       - name: Verifica versione tag
         shell: pwsh
         run: |
