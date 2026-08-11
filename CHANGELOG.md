@@ -20,6 +20,8 @@ Tutte le modifiche rilevanti di Image Studio Uploader sono documentate qui.
 - Workflow GitHub per release Windows e pubblicazione del sito download.
 - Aggiornamenti di sicurezza a Electron 43.3.0, Firebase Admin 14.2.0 e Sharp
   0.35.3; eliminate le advisory alte e critiche note.
+- Caricamento lazy della configurazione Firebase, per consentire test e build
+  senza distribuire credenziali nei runner CI.
 
 ### Modificato
 

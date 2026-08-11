@@ -8,6 +8,10 @@ const test = require("node:test");
 
 const { analyzeUploadFolders, _test } = require("../core/uploader-core");
 
+test("il core si importa senza credenziali Firebase", () => {
+  assert.equal(typeof analyzeUploadFolders, "function");
+});
+
 test("normalizza capitoli web storici e mantiene excludeFromSelection", () => {
   assert.deepEqual(_test.normalizeStoredChapter({
     id: "cerimonia",

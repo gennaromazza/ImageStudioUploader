@@ -9,15 +9,15 @@
   "installer": {
     "filename": "Image Studio Uploader Setup 3.1.0.exe",
     "url": "https://github.com/gennaromazza/ImageStudioUploader/releases/download/image-studio-uploader-v3.1.0/Image%20Studio%20Uploader%20Setup%203.1.0.exe",
-    "size": 111112047,
-    "sha256": "151FF2AEB34025EFB53F401E7D6911A3049112D0CD70D426FFFA690D47442A7E",
+    "size": 111111656,
+    "sha256": "42DF1611F03AE688DC00A28BFC240E04F3F543CA243718AF59CA6C4B07C444CD",
     "signature": "NotSigned"
   },
   "blockmap": {
     "filename": "Image Studio Uploader Setup 3.1.0.exe.blockmap",
     "url": "https://github.com/gennaromazza/ImageStudioUploader/releases/download/image-studio-uploader-v3.1.0/Image%20Studio%20Uploader%20Setup%203.1.0.exe.blockmap",
-    "size": 116998,
-    "sha256": "2E5CF723CF56518E2EC87830B8F08C17B5AAE811EE0BEA062ED3083A3826EC3F"
+    "size": 116980,
+    "sha256": "0D870A30986277D54B4001FC52D2700DD8249BED6D252AA021A08D461315A189"
   },
   "compatibility": {
     "webApplication": "https://github.com/gennaromazza/memoriesospese",

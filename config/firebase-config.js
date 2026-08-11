@@ -83,14 +83,23 @@ function loadServiceAccount() {
   );
 }
 
-const SERVICE_ACCOUNT = loadServiceAccount();
-const PROJECT_ID = SERVICE_ACCOUNT.project_id;
-const BUCKET = `${PROJECT_ID}.firebasestorage.app`;
 const GALLERY_URL = process.env.GALLERY_URL || "https://imagestudiofotografico.com/gallery";
 
+let cachedConfig = null;
+function getFirebaseConfig() {
+  if (!cachedConfig) {
+    const serviceAccount = loadServiceAccount();
+    const projectId = serviceAccount.project_id;
+    cachedConfig = {
+      serviceAccount,
+      projectId,
+      bucket: process.env.FIREBASE_STORAGE_BUCKET || `${projectId}.firebasestorage.app`,
+    };
+  }
+  return cachedConfig;
+}
+
 module.exports = {
-  SERVICE_ACCOUNT,
-  PROJECT_ID,
-  BUCKET,
+  getFirebaseConfig,
   GALLERY_URL,
 };

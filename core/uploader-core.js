@@ -7,7 +7,7 @@ const fs = require("fs");
 const os = require("os");
 const path = require("path");
 const sharp = require("sharp");
-const { SERVICE_ACCOUNT, BUCKET, GALLERY_URL } = require("../config/firebase-config");
+const { getFirebaseConfig, GALLERY_URL } = require("../config/firebase-config");
 
 const IMG_EXT = new Set([
   ".jpg",
@@ -51,10 +51,11 @@ class UploadCancelledError extends Error {
 }
 
 function initFirebase() {
+  const { serviceAccount, bucket } = getFirebaseConfig();
   if (!getApps().length) {
     initializeApp({
-      credential: cert(SERVICE_ACCOUNT),
-      storageBucket: BUCKET,
+      credential: cert(serviceAccount),
+      storageBucket: bucket,
     });
   }
 
