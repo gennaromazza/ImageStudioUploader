@@ -30,8 +30,8 @@ image-studio-uploader-vX.Y.Z
 
 Una release dell'uploader deve costruire soltanto questo tool e includere:
 
-- `Image Studio Uploader Setup X.Y.Z.exe`;
-- `Image Studio Uploader Setup X.Y.Z.exe.blockmap`;
+- `Image.Studio.Uploader.Setup.X.Y.Z.exe`;
+- `Image.Studio.Uploader.Setup.X.Y.Z.exe.blockmap`;
 - aggiornamento di `docs/stable.json` oppure `docs/beta.json`;
 - changelog, istruzioni e runbook aggiornati;
 - checksum SHA-256 verificati;

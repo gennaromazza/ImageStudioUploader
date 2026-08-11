@@ -3,7 +3,7 @@ IMAGE STUDIO UPLOADER 3.1.0
 
 INSTALLAZIONE
 -------------
-1. Avvia "Image Studio Uploader Setup 3.1.0.exe".
+1. Avvia "Image.Studio.Uploader.Setup.3.1.0.exe".
 2. Scegli la cartella di installazione.
 3. Se il file firebase-service-account.json e accanto al Setup, verra copiato
    automaticamente. In alternativa consulta CREDENZIALI-FIREBASE.txt.
