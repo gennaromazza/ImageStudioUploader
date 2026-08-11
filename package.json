@@ -16,11 +16,13 @@
   },
   "devDependencies": {
     "electron": "^36.1.0",
-    "electron-builder": "^26.0.12"
+    "electron-builder": "^26.0.12",
+    "rcedit": "^5.0.2"
   },
   "build": {
     "appId": "com.imagestudio.uploader",
     "productName": "Image Studio Uploader",
+    "afterPack": "build/after-pack.cjs",
     "files": [
       "electron/**/*",
       "core/**/*",
