@@ -1,7 +1,7 @@
 ﻿"use strict";
 
 const path = require("path");
-const { app, BrowserWindow, ipcMain, dialog, shell } = require("electron");
+const { app, BrowserWindow, ipcMain, dialog, shell, clipboard } = require("electron");
 let core;
 let coreLoadError = null;
 try {
@@ -17,6 +17,10 @@ const {
   createCancelToken,
   listGalleries,
   searchGalleries,
+  getGalleryDetails,
+  listGalleryPhotos,
+  updateGalleryChapters,
+  moveGalleryPhotos,
   updateGalleryAssociations,
   searchClients,
   listJobs,
@@ -104,6 +108,22 @@ ipcMain.handle("gallery:create", async (_event, payload) => {
 
 ipcMain.handle("gallery:update-associations", async (_event, payload) => {
   return updateGalleryAssociations(payload || {});
+});
+
+ipcMain.handle("gallery:details", async (_event, payload) => {
+  return getGalleryDetails(payload && payload.galleryId);
+});
+
+ipcMain.handle("gallery:photos", async (_event, payload) => {
+  return listGalleryPhotos(payload || {});
+});
+
+ipcMain.handle("gallery:update-chapters", async (_event, payload) => {
+  return updateGalleryChapters(payload || {});
+});
+
+ipcMain.handle("gallery:move-photos", async (_event, payload) => {
+  return moveGalleryPhotos(payload || {});
 });
 
 ipcMain.handle("client:search", async (_event, params) => {
@@ -200,6 +220,7 @@ ipcMain.handle("upload:start", async (_event, payload) => {
           jobId: payload.jobId,
           customCovers: payload.customCovers,
           chapterSettings: payload.chapterSettings,
+          chapterSettings: payload.chapterSettings,
           cancelToken,
           onProgress,
         });
@@ -275,6 +296,12 @@ ipcMain.handle("external:open", async (_event, payload) => {
     }
     await shell.openExternal(url);
   }
+  return { ok: true };
+});
+
+ipcMain.handle("clipboard:write-text", async (_event, payload) => {
+  const value = String((payload && payload.text) || "");
+  clipboard.writeText(value);
   return { ok: true };
 });
 

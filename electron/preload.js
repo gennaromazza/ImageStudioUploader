@@ -14,6 +14,10 @@ contextBridge.exposeInMainWorld("galleryApi", {
   searchGalleries: (query, limit) => ipcRenderer.invoke("gallery:search", { query, limit }),
   createGallery: (payload) => ipcRenderer.invoke("gallery:create", payload),
   updateGalleryAssociations: (payload) => ipcRenderer.invoke("gallery:update-associations", payload || {}),
+  getGalleryDetails: (galleryId) => ipcRenderer.invoke("gallery:details", { galleryId }),
+  listGalleryPhotos: (payload) => ipcRenderer.invoke("gallery:photos", payload || {}),
+  updateGalleryChapters: (payload) => ipcRenderer.invoke("gallery:update-chapters", payload || {}),
+  moveGalleryPhotos: (payload) => ipcRenderer.invoke("gallery:move-photos", payload || {}),
   searchClients: (query, limit = 8) => ipcRenderer.invoke("client:search", { query, limit }),
   listJobs: (limit = 150) => ipcRenderer.invoke("job:list", { limit }),
   listJobsForClient: (payload) => ipcRenderer.invoke("job:list-for-client", payload || {}),
@@ -29,6 +33,7 @@ contextBridge.exposeInMainWorld("galleryApi", {
   analyzeUploadFolders: (payload) => ipcRenderer.invoke("upload:analyze-folders", payload || {}),
   cancelUpload: (uploadId) => ipcRenderer.invoke("upload:cancel", { uploadId }),
   openExternal: (url) => ipcRenderer.invoke("external:open", { url }),
+  copyText: (text) => ipcRenderer.invoke("clipboard:write-text", { text }),
   onUploadProgress: (cb) => {
     const h = (_event, payload) => cb(payload);
     ipcRenderer.on("upload:progress", h);

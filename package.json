@@ -1,6 +1,6 @@
 {
   "name": "image-studio-uploader",
-  "version": "3.0.0",
+  "version": "3.1.0",
   "description": "Uploader gallerie Image Studio con GUI desktop",
   "author": "Image Studio",
   "main": "electron/main.js",
@@ -8,14 +8,16 @@
   "scripts": {
     "start:gui": "electron .",
     "dev": "electron .",
+    "test": "node --test tests/*.test.js",
+    "test:syntax": "node --check core/uploader-core.js && node --check electron/main.js && node --check electron/preload.js && node --check electron/renderer/renderer.js",
     "build:win": "electron-builder --win nsis"
   },
   "dependencies": {
-    "firebase-admin": "^12.0.0",
-    "sharp": "^0.34.4"
+    "firebase-admin": "^14.2.0",
+    "sharp": "^0.35.3"
   },
   "devDependencies": {
-    "electron": "^36.1.0",
+    "electron": "^43.3.0",
     "electron-builder": "^26.0.12",
     "rcedit": "^5.0.2"
   },

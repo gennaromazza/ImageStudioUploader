@@ -1,79 +1,57 @@
-════════════════════════════════════════════════════════════
-  Image Studio — Uploader Gallerie per PC
-  (Versione semplificata, nessuna configurazione richiesta)
-════════════════════════════════════════════════════════════
+IMAGE STUDIO UPLOADER 3.1.0
+===========================
 
-COSA SERVE (solo la prima volta):
-──────────────────────────────────
-1. Node.js installato sul tuo PC
-   → Scaricalo da: https://nodejs.org
-   → Scegli la versione "LTS" e installala normalmente
+INSTALLAZIONE
+-------------
+1. Avvia "Image Studio Uploader Setup 3.1.0.exe".
+2. Scegli la cartella di installazione.
+3. Se il file firebase-service-account.json e accanto al Setup, verra copiato
+   automaticamente. In alternativa consulta CREDENZIALI-FIREBASE.txt.
+4. Avvia Image Studio Uploader dal menu Start o dal collegamento desktop.
 
-2. Copia questi due file nella stessa cartella sul tuo PC:
-   - uploader-pc.js
-   - package-uploader.json   (rinominalo in: package.json)
+GALLERIA ESISTENTE
+------------------
+1. Cerca e seleziona la galleria.
+2. Usa la scheda in alto per aprire o copiare il link pubblico.
+3. Nella sezione Capitoli puoi creare, rinominare, descrivere e riordinare i
+   capitoli. Un capitolo puo essere escluso dalla selezione cliente.
+4. Premi "Carica miniature" per organizzare le fotografie gia online.
+5. Seleziona una o piu foto, scegli il capitolo di destinazione e premi
+   "Sposta foto selezionate". Massimo 400 foto per singola operazione atomica.
+6. Per aggiungere nuovi file, seleziona una o piu cartelle e controlla la
+   destinazione proposta per ogni cartella.
+7. Verifica copertine, cliente e job, quindi avvia l'upload.
 
-3. Apri il terminale (cmd o PowerShell) in quella cartella
-   e scrivi:
-      npm install
-   Attendi che finisca (scarica firebase-admin, ~30 secondi)
+NUOVA GALLERIA
+--------------
+1. Compila nome e informazioni dell'evento.
+2. Seleziona la cartella principale oppure piu cartelle.
+3. Analizza i capitoli e correggi titolo, descrizione e ordine.
+4. Per ogni capitolo scegli se escluderlo dalla selezione cliente.
+5. Configura copertine, accesso, cliente, job e selezione.
+6. Avvia l'upload e attendi il riepilogo finale.
 
-═══ FATTO! Non devi fare altro. ═══════════════════════════
+ORGANIZZAZIONE DELLE CARTELLE
+-----------------------------
+- Le immagini nella cartella principale rimangono non assegnate.
+- Ogni sottocartella diventa un capitolo.
+- Se vengono selezionate piu cartelle, ogni cartella diventa un capitolo.
+- Durante l'aggiunta a una galleria esistente, una cartella puo essere associata
+  a un capitolo gia presente oppure creare un nuovo capitolo.
+- Capitoli con lo stesso nome, ignorando maiuscole e accenti, vengono unificati.
 
+FORMATI SUPPORTATI
+------------------
+JPG, JPEG, PNG, GIF, WEBP, BMP, TIFF, HEIC, HEIF, AVIF.
 
-COME USARLO OGNI VOLTA:
-─────────────────────────────────────────────────────────────
-1. Apri il terminale (cmd o PowerShell)
-2. Entra nella cartella dove hai salvato uploader-pc.js:
-      cd C:\Users\TuoNome\Desktop\Uploader
-3. Esegui:
-      node uploader-pc.js
+SICUREZZA
+---------
+- Non distribuire mai firebase-service-account.json.
+- L'installer non contiene credenziali reali.
+- L'applicazione 3.1.0 non e firmata con certificato Authenticode; Windows puo
+  quindi mostrare l'avviso SmartScreen al primo avvio.
 
-Lo script ti chiede tutto in modo interattivo:
-  - Vuoi creare una nuova galleria o aggiungere foto a una esistente?
-  - Nome della galleria
-  - Data evento
-  - Percorso della cartella con le foto
-
-
-ORGANIZZAZIONE DELLE FOTO:
-─────────────────────────────────────────────────────────────
-• Cartella SENZA sottocartelle → tutte le foto in un unico blocco
-
-• Cartella CON sottocartelle → ogni sottocartella diventa un
-  capitolo nella galleria (utile per matrimoni: chiesa, ristorante, ecc.)
-
-  Esempio:
-    📁 Matrimonio Rossi
-      📁 01-Chiesa
-      📁 02-Villa-Ricevimento
-      📁 03-Torta
-
-  Le sottocartelle vengono ordinate alfabeticamente.
-
-
-FORMATI SUPPORTATI:
-─────────────────────────────────────────────────────────────
-JPG, JPEG, PNG, GIF, WEBP, BMP, TIFF, HEIC, HEIF, AVIF
-
-
-DOMANDE FREQUENTI:
-─────────────────────────────────────────────────────────────
-Q: Come inserisco il percorso della cartella?
-A: Puoi trascinare la cartella direttamente sul terminale —
-   il percorso viene incollato automaticamente.
-   Oppure copia il percorso da Esplora File.
-
-Q: Posso chiudere il terminale durante l'upload?
-A: No, lascia il terminale aperto fino al completamento.
-   Vedrai il contatore: 📷  23/150 nome-file.jpg
-
-Q: Se un file fallisce, le altre foto vengono caricate lo stesso?
-A: Sì. Alla fine viene mostrato un elenco degli errori.
-
-Q: Posso caricare le stesse foto due volte?
-A: Sì, ma creerà duplicati. Lo script non controlla duplicati
-   nella modalità "nuova galleria". Usa "aggiungi a esistente"
-   con cautela.
-
-════════════════════════════════════════════════════════════
+SUPPORTO E RIFERIMENTI
+----------------------
+Uploader: https://github.com/gennaromazza/ImageStudioUploader
+Applicazione web: https://github.com/gennaromazza/memoriesospese

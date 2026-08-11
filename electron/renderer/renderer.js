@@ -16,6 +16,12 @@ const state = {
   themes: [],
   chapterSettings: [],
   chapterAnalysisKey: "",
+  galleryDetails: null,
+  galleryPhotos: [],
+  galleryPhotosLoaded: false,
+  selectedPhotoIds: new Set(),
+  existingChapterSettings: [],
+  existingChapterAnalysisKey: "",
 };
 
 const IMAGE_EXTENSIONS = new Set([".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".tiff", ".tif", ".heic", ".heif", ".avif"]);
@@ -28,8 +34,31 @@ const els = {
   gallerySearch: document.getElementById("gallery-search"),
   refreshGalleries: document.getElementById("refresh-galleries"),
   galleryList: document.getElementById("gallery-list"),
+  selectedGalleryCard: document.getElementById("selected-gallery-card"),
+  selectedGalleryName: document.getElementById("selected-gallery-name"),
+  selectedGalleryMeta: document.getElementById("selected-gallery-meta"),
+  selectedGalleryUrl: document.getElementById("selected-gallery-url"),
+  openExistingGallery: document.getElementById("open-existing-gallery"),
+  copyExistingGalleryLink: document.getElementById("copy-existing-gallery-link"),
+  shareExistingWhatsappTop: document.getElementById("share-existing-whatsapp-top"),
+  existingChaptersSummary: document.getElementById("existing-chapters-summary"),
+  existingChaptersEditor: document.getElementById("existing-chapters-editor"),
+  addExistingChapter: document.getElementById("add-existing-chapter"),
+  saveExistingChapters: document.getElementById("save-existing-chapters"),
+  loadGalleryPhotos: document.getElementById("load-gallery-photos"),
+  photoOrganizerSummary: document.getElementById("photo-organizer-summary"),
+  photoSearch: document.getElementById("photo-search"),
+  photoChapterFilter: document.getElementById("photo-chapter-filter"),
+  selectVisiblePhotos: document.getElementById("select-visible-photos"),
+  clearPhotoSelection: document.getElementById("clear-photo-selection"),
+  photoTargetChapter: document.getElementById("photo-target-chapter"),
+  moveSelectedPhotos: document.getElementById("move-selected-photos"),
+  photoOrganizerGrid: document.getElementById("photo-organizer-grid"),
 
   existingFolder: document.getElementById("existing-folder"),
+  analyzeExistingFolders: document.getElementById("analyze-existing-folders"),
+  existingUploadChaptersSummary: document.getElementById("existing-upload-chapters-summary"),
+  existingUploadChapters: document.getElementById("existing-upload-chapters"),
   pickExistingFolder: document.getElementById("pick-existing-folder"),
   existingCoverDesktop: document.getElementById("existing-cover-desktop"),
   existingCoverMobile: document.getElementById("existing-cover-mobile"),
@@ -145,6 +174,8 @@ function setUploadUIBusy(busy) {
   els.refreshGalleries.disabled = busy;
   els.shareExistingWhatsapp.disabled = busy;
   els.saveExistingAssociations.disabled = busy;
+  els.saveExistingChapters.disabled = busy;
+  els.moveSelectedPhotos.disabled = busy;
 }
 
 function updateProgress(done, total, percentOverride = null) {
@@ -222,7 +253,7 @@ function renderGalleries(galleries) {
       <td>${gallery.count || 0}</td>
     `;
 
-    tr.addEventListener("click", () => {
+    tr.addEventListener("click", async () => {
       if (state.selectedRow) {
         state.selectedRow.classList.remove("selected");
       }
@@ -234,10 +265,159 @@ function renderGalleries(galleries) {
       populateExistingAssociationEditor(gallery).catch((err) => {
         appendError(`Associazioni galleria: ${err.message || err}`);
       });
+      try {
+        await loadSelectedGalleryDetails();
+      } catch (err) {
+        appendError(`Dettagli galleria: ${err.message || err}`);
+      }
     });
 
     els.galleryList.appendChild(tr);
   }
+}
+
+function renderSelectedGalleryCard() {
+  const details = state.galleryDetails;
+  if (!details) {
+    els.selectedGalleryCard.classList.add("hidden");
+    return;
+  }
+  els.selectedGalleryCard.classList.remove("hidden");
+  els.selectedGalleryName.textContent = details.name || "Galleria senza nome";
+  els.selectedGalleryMeta.textContent = `${details.photoCount || 0} foto · ${details.chapters.length} capitoli · codice ${details.code || "mancante"}`;
+  els.selectedGalleryUrl.textContent = details.galleryUrl || "Link non disponibile: codice galleria mancante";
+  els.selectedGalleryUrl.dataset.url = details.galleryUrl || "";
+  els.openExistingGallery.disabled = !details.galleryUrl;
+  els.copyExistingGalleryLink.disabled = !details.galleryUrl;
+}
+
+function renderExistingChapters() {
+  const chapters = state.galleryDetails?.chapters || [];
+  els.existingChaptersEditor.innerHTML = "";
+  els.existingChaptersSummary.textContent = chapters.length
+    ? `${chapters.length} capitoli. Il campo “Escludi dalla selezione” e compatibile con Memoriesospese.`
+    : "Nessun capitolo: puoi crearne uno oppure lasciare le foto non assegnate.";
+
+  chapters.forEach((chapter, index) => {
+    const count = state.galleryPhotos.filter((photo) => photo.chapterId === chapter.id).length;
+    const countLabel = state.galleryPhotosLoaded ? `${count} foto caricate` : "Conteggio disponibile dopo il caricamento miniature";
+    const card = document.createElement("div");
+    card.className = "chapter-card existing-chapter-card";
+    card.innerHTML = `
+      <div class="chapter-order">
+        <button type="button" class="btn secondary chapter-up" ${index === 0 ? "disabled" : ""}>↑</button>
+        <strong>${index + 1}</strong>
+        <button type="button" class="btn secondary chapter-down" ${index === chapters.length - 1 ? "disabled" : ""}>↓</button>
+      </div>
+      <div class="chapter-fields">
+        <label>Titolo<input class="chapter-title" type="text" value="${escapeHtml(chapter.titolo)}" /></label>
+        <label>Descrizione<input class="chapter-description" type="text" value="${escapeHtml(chapter.descrizione || "")}" /></label>
+        <label class="checkbox-row chapter-selection-toggle">
+          <input class="chapter-exclude" type="checkbox" ${chapter.excludeFromSelection ? "checked" : ""} />
+          <span>Escludi questo capitolo dalla selezione cliente</span>
+        </label>
+        <div class="chapter-meta">${countLabel}</div>
+        <button type="button" class="btn danger chapter-delete" ${state.galleryPhotosLoaded ? "" : "disabled"}>Elimina capitolo vuoto</button>
+      </div>`;
+    card.querySelector(".chapter-title").addEventListener("input", (event) => { chapter.titolo = event.target.value; });
+    card.querySelector(".chapter-description").addEventListener("input", (event) => { chapter.descrizione = event.target.value; });
+    card.querySelector(".chapter-exclude").addEventListener("change", (event) => { chapter.excludeFromSelection = event.target.checked; });
+    card.querySelector(".chapter-up").addEventListener("click", () => moveExistingChapter(index, -1));
+    card.querySelector(".chapter-down").addEventListener("click", () => moveExistingChapter(index, 1));
+    card.querySelector(".chapter-delete").addEventListener("click", () => {
+      if (count > 0) {
+        alert("Questo capitolo contiene foto. Spostale prima in un altro capitolo.");
+        return;
+      }
+      if (confirm(`Eliminare il capitolo “${chapter.titolo}”?`)) {
+        chapters.splice(index, 1);
+        renderExistingChapters();
+        renderOrganizerChapterOptions();
+      }
+    });
+    els.existingChaptersEditor.appendChild(card);
+  });
+  renderOrganizerChapterOptions();
+}
+
+function moveExistingChapter(index, direction) {
+  const chapters = state.galleryDetails?.chapters || [];
+  const target = index + direction;
+  if (target < 0 || target >= chapters.length) return;
+  const [chapter] = chapters.splice(index, 1);
+  chapters.splice(target, 0, chapter);
+  renderExistingChapters();
+}
+
+function renderOrganizerChapterOptions() {
+  const chapters = state.galleryDetails?.chapters || [];
+  const filterValue = els.photoChapterFilter.value || "all";
+  const targetValue = els.photoTargetChapter.value || "";
+  els.photoChapterFilter.innerHTML = '<option value="all">Tutti i capitoli</option><option value="unassigned">Foto non assegnate</option>';
+  els.photoTargetChapter.innerHTML = '<option value="">Foto non assegnate</option>';
+  for (const chapter of chapters) {
+    const filter = document.createElement("option");
+    filter.value = chapter.id;
+    filter.textContent = chapter.titolo;
+    els.photoChapterFilter.appendChild(filter);
+    const target = filter.cloneNode(true);
+    els.photoTargetChapter.appendChild(target);
+  }
+  if ([...els.photoChapterFilter.options].some((item) => item.value === filterValue)) els.photoChapterFilter.value = filterValue;
+  if ([...els.photoTargetChapter.options].some((item) => item.value === targetValue)) els.photoTargetChapter.value = targetValue;
+}
+
+function getVisibleOrganizerPhotos() {
+  const query = els.photoSearch.value.trim().toLowerCase();
+  const chapterFilter = els.photoChapterFilter.value;
+  return state.galleryPhotos.filter((photo) => {
+    if (query && !String(photo.name || "").toLowerCase().includes(query)) return false;
+    if (chapterFilter === "unassigned" && photo.chapterId) return false;
+    if (chapterFilter !== "all" && chapterFilter !== "unassigned" && photo.chapterId !== chapterFilter) return false;
+    return true;
+  });
+}
+
+function renderPhotoOrganizer() {
+  const visible = getVisibleOrganizerPhotos();
+  els.photoOrganizerGrid.innerHTML = "";
+  els.photoOrganizerSummary.textContent = `${state.galleryPhotos.length} foto caricate · ${visible.length} visibili · ${state.selectedPhotoIds.size} selezionate`;
+  for (const photo of visible) {
+    const item = document.createElement("label");
+    item.className = `organizer-photo${state.selectedPhotoIds.has(photo.id) ? " selected" : ""}`;
+    item.innerHTML = `
+      <input type="checkbox" ${state.selectedPhotoIds.has(photo.id) ? "checked" : ""} />
+      <img src="${escapeHtml(photo.url)}" alt="${escapeHtml(photo.name || "Foto")}" loading="lazy" />
+      <span title="${escapeHtml(photo.name || "")}">${escapeHtml(photo.name || "Senza nome")}</span>`;
+    item.querySelector("input").addEventListener("change", (event) => {
+      if (event.target.checked) state.selectedPhotoIds.add(photo.id);
+      else state.selectedPhotoIds.delete(photo.id);
+      renderPhotoOrganizer();
+    });
+    els.photoOrganizerGrid.appendChild(item);
+  }
+}
+
+async function loadSelectedGalleryDetails() {
+  if (!state.selectedGalleryId) return;
+  state.galleryDetails = await window.galleryApi.getGalleryDetails(state.selectedGalleryId);
+  state.galleryPhotos = [];
+  state.galleryPhotosLoaded = false;
+  state.selectedPhotoIds.clear();
+  renderSelectedGalleryCard();
+  renderExistingChapters();
+  renderExistingUploadChapterMapping();
+  renderPhotoOrganizer();
+}
+
+async function loadSelectedGalleryPhotos() {
+  if (!state.selectedGalleryId) throw new Error("Seleziona prima una galleria.");
+  els.photoOrganizerSummary.textContent = "Caricamento miniature in corso...";
+  state.galleryPhotos = await window.galleryApi.listGalleryPhotos({ galleryId: state.selectedGalleryId, limit: 5000 });
+  state.galleryPhotosLoaded = true;
+  state.selectedPhotoIds.clear();
+  renderExistingChapters();
+  renderPhotoOrganizer();
 }
 
 function renderThemes() {
@@ -295,6 +475,10 @@ function renderChapterEditor() {
         <label>Descrizione
           <input class="chapter-description" type="text" value="${escapeHtml(chapter.description || "")}" placeholder="Descrizione facoltativa" />
         </label>
+        <label class="checkbox-row chapter-selection-toggle">
+          <input class="chapter-exclude" type="checkbox" ${chapter.excludeFromSelection ? "checked" : ""} />
+          <span>Escludi dalla selezione cliente</span>
+        </label>
         <div class="chapter-meta">Cartella: ${escapeHtml(chapter.sourceName)} · ${chapter.photoCount} foto${chapter.hasCover ? " · copertina trovata" : ""}</div>
       </div>
     `;
@@ -304,6 +488,9 @@ function renderChapterEditor() {
     });
     card.querySelector(".chapter-description").addEventListener("input", (event) => {
       chapter.description = event.target.value;
+    });
+    card.querySelector(".chapter-exclude").addEventListener("change", (event) => {
+      chapter.excludeFromSelection = event.target.checked;
     });
     card.querySelector(".chapter-up").addEventListener("click", () => moveChapter(index, -1));
     card.querySelector(".chapter-down").addEventListener("click", () => moveChapter(index, 1));
@@ -341,6 +528,61 @@ async function analyzeNewFolders() {
   const rootInfo = analysis.rootPhotoCount ? `, ${analysis.rootPhotoCount} foto senza capitolo` : "";
   els.chaptersSummary.textContent = `${analysis.totalPhotos || 0} foto totali, ${state.chapterSettings.length} capitoli${rootInfo}.`;
   renderChapterEditor();
+}
+
+function renderExistingUploadChapterMapping() {
+  els.existingUploadChapters.innerHTML = "";
+  const existing = state.galleryDetails?.chapters || [];
+  state.existingChapterSettings.forEach((chapter, index) => {
+    const card = document.createElement("div");
+    card.className = "chapter-card upload-mapping-card";
+    const options = existing
+      .map((item) => `<option value="${escapeHtml(item.titolo)}">Capitolo esistente: ${escapeHtml(item.titolo)}</option>`)
+      .join("");
+    card.innerHTML = `
+      <div class="chapter-order"><strong>${index + 1}</strong></div>
+      <div class="chapter-fields">
+        <label>Cartella<input type="text" value="${escapeHtml(chapter.sourceName)}" readonly /></label>
+        <label>Destinazione
+          <select class="chapter-destination">
+            <option value="${escapeHtml(chapter.sourceName)}">Nuovo capitolo: ${escapeHtml(chapter.sourceName)}</option>
+            ${options}
+          </select>
+        </label>
+        <label>Descrizione<input class="chapter-description" type="text" value="${escapeHtml(chapter.description || "")}" /></label>
+        <label class="checkbox-row chapter-selection-toggle">
+          <input class="chapter-exclude" type="checkbox" ${chapter.excludeFromSelection ? "checked" : ""} />
+          <span>Escludi dalla selezione cliente</span>
+        </label>
+        <div class="chapter-meta">${chapter.photoCount || 0} foto${chapter.hasCover ? " · copertina trovata" : ""}</div>
+      </div>`;
+    const select = card.querySelector(".chapter-destination");
+    if ([...select.options].some((option) => option.value === chapter.title)) select.value = chapter.title;
+    select.addEventListener("change", (event) => { chapter.title = event.target.value; });
+    card.querySelector(".chapter-description").addEventListener("input", (event) => { chapter.description = event.target.value; });
+    card.querySelector(".chapter-exclude").addEventListener("change", (event) => { chapter.excludeFromSelection = event.target.checked; });
+    els.existingUploadChapters.appendChild(card);
+  });
+}
+
+async function analyzeExistingFoldersForMapping() {
+  const selectedFolders = getFolderSelection(els.existingFolder);
+  if (!selectedFolders.length) {
+    state.existingChapterSettings = [];
+    state.existingChapterAnalysisKey = "";
+    els.existingUploadChaptersSummary.textContent = "Seleziona le cartelle per decidere in quali capitoli caricarle.";
+    renderExistingUploadChapterMapping();
+    return;
+  }
+  const analysis = await window.galleryApi.analyzeUploadFolders({
+    folder: selectedFolders[0] || "",
+    folders: selectedFolders,
+  });
+  state.existingChapterSettings = (analysis.chapters || []).map((chapter) => ({ ...chapter }));
+  state.existingChapterAnalysisKey = selectedFolders.join("|").toLowerCase();
+  const rootInfo = analysis.rootPhotoCount ? ` · ${analysis.rootPhotoCount} foto non assegnate` : "";
+  els.existingUploadChaptersSummary.textContent = `${analysis.totalPhotos || 0} foto · ${state.existingChapterSettings.length} cartelle/capitoli${rootInfo}`;
+  renderExistingUploadChapterMapping();
 }
 
 async function loadJobsForClient(client) {
@@ -824,6 +1066,7 @@ async function buildNewUploadPayload() {
     sourceName: chapter.sourceName,
     title: String(chapter.title || "").trim(),
     description: String(chapter.description || "").trim(),
+    excludeFromSelection: chapter.excludeFromSelection === true,
     order,
   }));
   if (chapterSettings.some((chapter) => !chapter.title)) {
@@ -907,7 +1150,10 @@ function attachListeners() {
   els.refreshGalleries.addEventListener("click", () => loadGalleries(els.gallerySearch.value));
   els.gallerySearch.addEventListener("input", () => debouncedLoadGalleries(els.gallerySearch.value));
 
-  els.pickExistingFolder.addEventListener("click", () => pickFolder(els.existingFolder));
+  els.pickExistingFolder.addEventListener("click", async () => {
+    await pickFolder(els.existingFolder);
+    await analyzeExistingFoldersForMapping();
+  });
   els.pickNewFolder.addEventListener("click", () => pickFolder(els.newFolder));
   els.pickExistingCoverDesktop.addEventListener("click", async () => {
     await pickImage(els.existingCoverDesktop);
@@ -928,6 +1174,7 @@ function attachListeners() {
 
   bindDropTarget(els.existingFolder.parentElement, (paths) => {
     setFolderSelection(els.existingFolder, pathsToFolderSelection(paths));
+    analyzeExistingFoldersForMapping().catch((err) => appendError(`Analisi destinazioni: ${err.message || err}`));
   });
   bindDropTarget(els.newFolder.parentElement, (paths) => {
     setFolderSelection(els.newFolder, pathsToFolderSelection(paths));
@@ -962,6 +1209,86 @@ function attachListeners() {
     }
   });
   els.shareExistingWhatsapp.addEventListener("click", shareSelectedGalleryWhatsapp);
+  els.shareExistingWhatsappTop.addEventListener("click", shareSelectedGalleryWhatsapp);
+  els.openExistingGallery.addEventListener("click", async () => {
+    const url = state.galleryDetails?.galleryUrl;
+    if (url) await window.galleryApi.openExternal(url);
+  });
+  els.selectedGalleryUrl.addEventListener("click", async (event) => {
+    event.preventDefault();
+    const url = state.galleryDetails?.galleryUrl;
+    if (url) await window.galleryApi.openExternal(url);
+  });
+  els.copyExistingGalleryLink.addEventListener("click", async () => {
+    const url = state.galleryDetails?.galleryUrl;
+    if (!url) return;
+    await window.galleryApi.copyText(url);
+    els.statusText.textContent = "Link della galleria copiato negli appunti.";
+  });
+  els.addExistingChapter.addEventListener("click", () => {
+    if (!state.galleryDetails) return alert("Seleziona prima una galleria.");
+    state.galleryDetails.chapters.push({
+      id: `new_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+      titolo: "Nuovo capitolo",
+      descrizione: "",
+      ordine: state.galleryDetails.chapters.length,
+      excludeFromSelection: false,
+    });
+    renderExistingChapters();
+  });
+  els.saveExistingChapters.addEventListener("click", async () => {
+    try {
+      if (!state.galleryDetails) throw new Error("Seleziona prima una galleria.");
+      els.saveExistingChapters.disabled = true;
+      state.galleryDetails = await window.galleryApi.updateGalleryChapters({
+        galleryId: state.selectedGalleryId,
+        chapters: state.galleryDetails.chapters,
+      });
+      renderSelectedGalleryCard();
+      renderExistingChapters();
+      renderPhotoOrganizer();
+      els.statusText.textContent = "Capitoli salvati correttamente.";
+    } catch (err) {
+      alert(err.message || err);
+    } finally {
+      els.saveExistingChapters.disabled = false;
+    }
+  });
+  els.loadGalleryPhotos.addEventListener("click", () => {
+    loadSelectedGalleryPhotos().catch((err) => alert(err.message || err));
+  });
+  els.photoSearch.addEventListener("input", renderPhotoOrganizer);
+  els.photoChapterFilter.addEventListener("change", renderPhotoOrganizer);
+  els.selectVisiblePhotos.addEventListener("click", () => {
+    for (const photo of getVisibleOrganizerPhotos()) state.selectedPhotoIds.add(photo.id);
+    renderPhotoOrganizer();
+  });
+  els.clearPhotoSelection.addEventListener("click", () => {
+    state.selectedPhotoIds.clear();
+    renderPhotoOrganizer();
+  });
+  els.moveSelectedPhotos.addEventListener("click", async () => {
+    try {
+      if (!state.selectedPhotoIds.size) throw new Error("Seleziona almeno una fotografia.");
+      const targetId = els.photoTargetChapter.value || null;
+      const targetName = targetId
+        ? state.galleryDetails.chapters.find((chapter) => chapter.id === targetId)?.titolo
+        : "Foto non assegnate";
+      if (!confirm(`Spostare ${state.selectedPhotoIds.size} foto in “${targetName}”?`)) return;
+      els.moveSelectedPhotos.disabled = true;
+      const result = await window.galleryApi.moveGalleryPhotos({
+        galleryId: state.selectedGalleryId,
+        photoIds: [...state.selectedPhotoIds],
+        chapterId: targetId,
+      });
+      els.statusText.textContent = `${result.moved} foto spostate in ${targetName}.`;
+      await loadSelectedGalleryPhotos();
+    } catch (err) {
+      alert(err.message || err);
+    } finally {
+      els.moveSelectedPhotos.disabled = false;
+    }
+  });
 
   els.existingSearchClientBtn.addEventListener("click", () => {
     searchExistingClients().catch((err) => alert(err.message || err));
@@ -1018,6 +1345,9 @@ function attachListeners() {
   els.analyzeNewFolders.addEventListener("click", () => {
     analyzeNewFolders().catch((err) => alert(err.message || err));
   });
+  els.analyzeExistingFolders.addEventListener("click", () => {
+    analyzeExistingFoldersForMapping().catch((err) => alert(err.message || err));
+  });
   els.clientSearch.addEventListener("keydown", (event) => {
     if (event.key === "Enter") {
       event.preventDefault();
@@ -1065,6 +1395,10 @@ function attachListeners() {
 
       let skipDuplicates = els.skipDuplicates.checked;
       if (hasFolder) {
+        const folderKey = selectedFolders.join("|").toLowerCase();
+        if (state.existingChapterAnalysisKey !== folderKey) {
+          await analyzeExistingFoldersForMapping();
+        }
         const analysis = await window.galleryApi.analyzeExistingUpload({
           galleryId: state.selectedGalleryId,
           folder: selectedFolders[0] || "",
@@ -1090,6 +1424,13 @@ function attachListeners() {
           desktopPath: els.existingCoverDesktop.value.trim(),
           mobilePath: els.existingCoverMobile.value.trim(),
         },
+        chapterSettings: state.existingChapterSettings.map((chapter, order) => ({
+          sourceName: chapter.sourceName,
+          title: String(chapter.title || chapter.sourceName || "").trim(),
+          description: String(chapter.description || "").trim(),
+          excludeFromSelection: chapter.excludeFromSelection === true,
+          order,
+        })),
       });
     } catch (err) {
       alert(err.message);

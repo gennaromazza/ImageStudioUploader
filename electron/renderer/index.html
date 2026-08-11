@@ -3,6 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: file: https:; object-src 'none'; base-uri 'self'; form-action 'none'" />
     <title>Image Studio Uploader</title>
     <link rel="stylesheet" href="./styles.css" />
   </head>
@@ -41,6 +42,59 @@
               </table>
             </div>
 
+            <section id="selected-gallery-card" class="selected-gallery-card hidden" aria-live="polite">
+              <div>
+                <p class="eyebrow">GALLERIA SELEZIONATA</p>
+                <h2 id="selected-gallery-name">—</h2>
+                <p id="selected-gallery-meta" class="muted compact-text"></p>
+                <a id="selected-gallery-url" href="#" class="gallery-url"></a>
+              </div>
+              <div class="actions compact wrap-actions">
+                <button id="open-existing-gallery" class="btn primary" type="button">Apri galleria</button>
+                <button id="copy-existing-gallery-link" class="btn secondary" type="button">Copia link</button>
+                <button id="share-existing-whatsapp-top" class="btn secondary" type="button">WhatsApp</button>
+              </div>
+            </section>
+
+            <details class="workflow-section" open>
+              <summary><strong>1. Capitoli e smistamento foto</strong><span>Gestisci la struttura della galleria prima di aggiungere nuovi file.</span></summary>
+              <div class="workflow-body">
+                <div class="section-heading">
+                  <div>
+                    <h3>Capitoli esistenti</h3>
+                    <p id="existing-chapters-summary" class="muted compact-text">Seleziona una galleria.</p>
+                  </div>
+                  <button id="add-existing-chapter" class="btn secondary" type="button">Nuovo capitolo</button>
+                </div>
+                <div id="existing-chapters-editor" class="chapters-editor"></div>
+                <div class="actions compact">
+                  <button id="save-existing-chapters" class="btn primary" type="button">Salva capitoli</button>
+                </div>
+
+                <hr class="section-divider" />
+                <div class="section-heading">
+                  <div>
+                    <h3>Smista fotografie</h3>
+                    <p id="photo-organizer-summary" class="muted compact-text">Carica le foto della galleria selezionata.</p>
+                  </div>
+                  <button id="load-gallery-photos" class="btn secondary" type="button">Carica miniature</button>
+                </div>
+                <div class="organizer-toolbar">
+                  <input id="photo-search" type="search" placeholder="Cerca per nome file..." />
+                  <select id="photo-chapter-filter"><option value="all">Tutti i capitoli</option></select>
+                  <button id="select-visible-photos" class="btn secondary" type="button">Seleziona visibili</button>
+                  <button id="clear-photo-selection" class="btn secondary" type="button">Deseleziona</button>
+                </div>
+                <div class="organizer-toolbar">
+                  <select id="photo-target-chapter"><option value="">Foto non assegnate</option></select>
+                  <button id="move-selected-photos" class="btn primary" type="button">Sposta foto selezionate</button>
+                </div>
+                <div id="photo-organizer-grid" class="photo-organizer-grid"></div>
+              </div>
+            </details>
+
+            <div class="workflow-label"><strong>2. Aggiungi nuove fotografie</strong><span>Scegli cartelle, destinazioni e copertine.</span></div>
+
             <div class="row split">
               <div>
                 <label for="existing-folder">Cartella foto</label>
@@ -56,7 +110,18 @@
               </div>
             </div>
 
-            <div class="subpanel">
+            <div class="subpanel workflow-accent">
+              <div class="section-heading">
+                <div>
+                  <h3>Destinazione cartelle</h3>
+                  <p id="existing-upload-chapters-summary" class="muted compact-text">Seleziona le cartelle per decidere in quali capitoli caricarle.</p>
+                </div>
+                <button id="analyze-existing-folders" class="btn secondary" type="button">Analizza cartelle</button>
+              </div>
+              <div id="existing-upload-chapters" class="chapters-editor"></div>
+            </div>
+
+            <div class="subpanel workflow-accent">
               <h3>Copertine Galleria</h3>
               <div class="form-grid">
                 <div>
@@ -78,7 +143,7 @@
               </div>
             </div>
 
-            <div class="subpanel">
+            <div class="subpanel workflow-accent">
               <h3>Associazione cliente e job della galleria selezionata</h3>
               <div class="form-grid">
                 <div>
@@ -115,6 +180,7 @@
               </div>
             </div>
 
+            <div class="workflow-label"><strong>3. Riepilogo e avvio</strong><span>Controlla la galleria selezionata prima dell'upload.</span></div>
             <div class="actions">
               <button id="upload-existing" class="btn primary">Carica su galleria selezionata</button>
               <button id="share-existing-whatsapp" class="btn secondary">Condividi su WhatsApp</button>

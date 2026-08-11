@@ -14,5 +14,17 @@ exports.default = async function applyWindowsExecutableIcon(context) {
     "icon.ico"
   );
 
-  await rcedit(exePath, { icon: iconPath });
+  const version = context.packager.appInfo.version;
+  await rcedit(exePath, {
+    icon: iconPath,
+    "file-version": version,
+    "product-version": version,
+    "version-string": {
+      CompanyName: "Image Studio",
+      FileDescription: "Image Studio Uploader",
+      InternalName: "Image Studio Uploader",
+      OriginalFilename: "Image Studio Uploader.exe",
+      ProductName: "Image Studio Uploader",
+    },
+  });
 };

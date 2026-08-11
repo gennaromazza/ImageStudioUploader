@@ -1,6 +1,8 @@
 ﻿"use strict";
 
-const admin = require("firebase-admin");
+const { initializeApp, getApps, cert } = require("firebase-admin/app");
+const { getFirestore, FieldValue, FieldPath, Timestamp } = require("firebase-admin/firestore");
+const { getStorage } = require("firebase-admin/storage");
 const fs = require("fs");
 const os = require("os");
 const path = require("path");
@@ -49,17 +51,17 @@ class UploadCancelledError extends Error {
 }
 
 function initFirebase() {
-  if (!admin.apps.length) {
-    admin.initializeApp({
-      credential: admin.credential.cert(SERVICE_ACCOUNT),
+  if (!getApps().length) {
+    initializeApp({
+      credential: cert(SERVICE_ACCOUNT),
       storageBucket: BUCKET,
     });
   }
 
   if (!services) {
     services = {
-      db: admin.firestore(),
-      bucket: admin.storage().bucket(),
+      db: getFirestore(),
+      bucket: getStorage().bucket(),
     };
   }
 
@@ -455,8 +457,215 @@ function toGallerySummary(doc, index) {
     clientPhone: dt.clientPhone || "",
     jobId: dt.jobId || "",
     chapterCount: Array.isArray(dt.chapters) ? dt.chapters.length : 0,
+    galleryUrl: dt.code ? `${GALLERY_URL}/${dt.code}` : "",
     createdAt: dt.createdAt ? dt.createdAt.toDate().toISOString() : "",
   };
+}
+
+function normalizeStoredChapter(chapter, index = 0) {
+  const item = chapter || {};
+  return {
+    id: String(item.id || "").trim(),
+    titolo: String(item.titolo || item.title || "").trim(),
+    descrizione: String(item.descrizione || item.description || "").trim(),
+    ordine: Number.isFinite(Number(item.ordine ?? item.position)) ? Number(item.ordine ?? item.position) : index,
+    excludeFromSelection: item.excludeFromSelection === true,
+    coverPhotoId: item.coverPhotoId || null,
+    coverPhotoUrl: item.coverPhotoUrl || null,
+    coverPhotoPosition: item.coverPhotoPosition || null,
+  };
+}
+
+async function getGalleryDetails(galleryId) {
+  const { db } = initFirebase();
+  const cleanGalleryId = String(galleryId || "").trim();
+  if (!cleanGalleryId) {
+    throw new Error("galleryId mancante.");
+  }
+
+  const snap = await withRetry(() => db.collection("galleries").doc(cleanGalleryId).get());
+  if (!snap.exists) {
+    throw new Error("Galleria non trovata.");
+  }
+
+  const data = snap.data() || {};
+  const chapters = (Array.isArray(data.chapters) ? data.chapters : [])
+    .map(normalizeStoredChapter)
+    .sort((a, b) => a.ordine - b.ordine || a.titolo.localeCompare(b.titolo));
+
+  return {
+    id: snap.id,
+    name: data.name || "",
+    code: data.code || "",
+    date: data.date || "",
+    location: data.location || "",
+    description: data.description || "",
+    photoCount: Number(data.photoCount || 0),
+    chaptersEnabled: data.chaptersEnabled === true || chapters.length > 0,
+    chapters,
+    galleryUrl: data.code ? `${GALLERY_URL}/${data.code}` : "",
+    clienteId: data.clienteId || "",
+    clientName: data.clientName || "",
+    clientEmail: data.clientEmail || "",
+    clientPhone: data.clientPhone || "",
+    jobId: data.jobId || "",
+  };
+}
+
+async function listGalleryPhotos({ galleryId, limit = 1000 } = {}) {
+  const { db } = initFirebase();
+  const cleanGalleryId = String(galleryId || "").trim();
+  if (!cleanGalleryId) {
+    throw new Error("galleryId mancante.");
+  }
+
+  const maxItems = Math.min(5000, Math.max(1, Number(limit) || 1000));
+  const docs = [];
+  let cursor = null;
+  while (docs.length < maxItems) {
+    const batchSize = Math.min(500, maxItems - docs.length);
+    let request = db.collection("photos").where("galleryId", "==", cleanGalleryId).limit(batchSize);
+    if (cursor) request = request.startAfter(cursor);
+    const snap = await withRetry(() => request.get());
+    if (snap.empty) break;
+    docs.push(...snap.docs);
+    cursor = snap.docs[snap.docs.length - 1];
+    if (snap.size < batchSize) break;
+  }
+
+  return docs
+    .map((doc) => {
+      const data = doc.data() || {};
+      return {
+        id: doc.id,
+        name: data.name || "",
+        url: data.url || "",
+        chapterId: data.chapterId || null,
+        chapterPosition: Number.isFinite(Number(data.chapterPosition)) ? Number(data.chapterPosition) : null,
+        position: Number.isFinite(Number(data.position)) ? Number(data.position) : null,
+      };
+    })
+    .sort((a, b) =>
+      String(a.chapterId || "").localeCompare(String(b.chapterId || "")) ||
+      (a.chapterPosition ?? a.position ?? Number.MAX_SAFE_INTEGER) -
+        (b.chapterPosition ?? b.position ?? Number.MAX_SAFE_INTEGER) ||
+      a.name.localeCompare(b.name),
+    );
+}
+
+async function updateGalleryChapters({ galleryId, chapters } = {}) {
+  const { db } = initFirebase();
+  const cleanGalleryId = String(galleryId || "").trim();
+  if (!cleanGalleryId) {
+    throw new Error("galleryId mancante.");
+  }
+  if (!Array.isArray(chapters)) {
+    throw new Error("Elenco capitoli non valido.");
+  }
+
+  const galleryRef = db.collection("galleries").doc(cleanGalleryId);
+  const gallerySnap = await withRetry(() => galleryRef.get());
+  if (!gallerySnap.exists) {
+    throw new Error("Galleria non trovata.");
+  }
+
+  const current = gallerySnap.data() || {};
+  const currentById = new Map((Array.isArray(current.chapters) ? current.chapters : []).map((item) => [String(item.id), item]));
+  const seenIds = new Set();
+  const seenTitles = new Set();
+  const now = new Date();
+  const normalized = chapters.map((raw, index) => {
+    const requestedId = String(raw.id || "").trim();
+    const id = !requestedId || requestedId.startsWith("new_") ? nanoid(10) : requestedId;
+    const titolo = String(raw.titolo || raw.title || "").trim();
+    if (!titolo) {
+      throw new Error(`Il capitolo ${index + 1} deve avere un titolo.`);
+    }
+    const titleKey = normalizeSearchText(titolo);
+    if (seenIds.has(id) || seenTitles.has(titleKey)) {
+      throw new Error(`Capitolo duplicato: ${titolo}.`);
+    }
+    seenIds.add(id);
+    seenTitles.add(titleKey);
+
+    const previous = currentById.get(id) || {};
+    const item = {
+      ...previous,
+      id,
+      titolo,
+      descrizione: String(raw.descrizione || raw.description || "").trim(),
+      ordine: index,
+      excludeFromSelection: raw.excludeFromSelection === true,
+      createdAt: previous.createdAt || now,
+      updatedAt: now,
+    };
+    return item;
+  });
+
+  const removedIds = [...currentById.keys()].filter((id) => !seenIds.has(id));
+  if (removedIds.length) {
+    const assigned = await withRetry(() =>
+      db.collection("photos").where("galleryId", "==", cleanGalleryId).get(),
+    );
+    const usedRemoved = new Set();
+    assigned.forEach((doc) => {
+      const chapterId = String(doc.data().chapterId || "");
+      if (removedIds.includes(chapterId)) usedRemoved.add(chapterId);
+    });
+    if (usedRemoved.size) {
+      throw new Error("Non puoi eliminare un capitolo che contiene foto. Spostale prima in un altro capitolo.");
+    }
+  }
+
+  await withRetry(() =>
+    galleryRef.update({
+      chapters: normalized,
+      chaptersEnabled: normalized.length > 0,
+      hasChapters: normalized.length > 0,
+      updatedAt: FieldValue.serverTimestamp(),
+    }),
+  );
+  return getGalleryDetails(cleanGalleryId);
+}
+
+async function moveGalleryPhotos({ galleryId, photoIds, chapterId = null } = {}) {
+  const { db } = initFirebase();
+  const cleanGalleryId = String(galleryId || "").trim();
+  const cleanPhotoIds = [...new Set((Array.isArray(photoIds) ? photoIds : []).map((id) => String(id || "").trim()).filter(Boolean))];
+  const targetChapterId = chapterId ? String(chapterId).trim() : null;
+  if (!cleanGalleryId || !cleanPhotoIds.length) {
+    throw new Error("Galleria e fotografie sono obbligatorie.");
+  }
+  if (cleanPhotoIds.length > 400) {
+    throw new Error("Puoi spostare al massimo 400 fotografie per volta, per garantire un salvataggio atomico.");
+  }
+
+  const details = await getGalleryDetails(cleanGalleryId);
+  if (targetChapterId && !details.chapters.some((chapter) => chapter.id === targetChapterId)) {
+    throw new Error("Il capitolo di destinazione non esiste.");
+  }
+
+  const allPhotos = await listGalleryPhotos({ galleryId: cleanGalleryId, limit: 5000 });
+  const byId = new Map(allPhotos.map((photo) => [photo.id, photo]));
+  if (cleanPhotoIds.some((id) => !byId.has(id))) {
+    throw new Error("Una o piu fotografie non appartengono alla galleria selezionata.");
+  }
+
+  let nextPosition = allPhotos
+    .filter((photo) => (photo.chapterId || null) === targetChapterId && !cleanPhotoIds.includes(photo.id))
+    .reduce((max, photo) => Math.max(max, photo.chapterPosition ?? -1), -1) + 1;
+
+  const batch = db.batch();
+  for (const id of cleanPhotoIds) {
+    batch.update(db.collection("photos").doc(id), {
+      chapterId: targetChapterId,
+      chapterPosition: nextPosition++,
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+  }
+  await withRetry(() => batch.commit());
+
+  return { ok: true, galleryId: cleanGalleryId, chapterId: targetChapterId, moved: cleanPhotoIds.length };
 }
 
 async function updateGalleryAssociations({ galleryId, client = {}, jobId = "" } = {}) {
@@ -494,8 +703,8 @@ async function updateGalleryAssociations({ galleryId, client = {}, jobId = "" } 
   const batch = db.batch();
   batch.update(galleryRef, {
     ...cleanClient,
-    jobId: newJobId || admin.firestore.FieldValue.delete(),
-    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    jobId: newJobId || FieldValue.delete(),
+    updatedAt: FieldValue.serverTimestamp(),
   });
 
   if (oldJobId && oldJobId !== newJobId) {
@@ -503,13 +712,13 @@ async function updateGalleryAssociations({ galleryId, client = {}, jobId = "" } 
     const oldJobSnap = await withRetry(() => oldJobRef.get());
     if (oldJobSnap.exists) {
       batch.update(oldJobRef, {
-        galleryIds: admin.firestore.FieldValue.arrayRemove(cleanGalleryId),
+        galleryIds: FieldValue.arrayRemove(cleanGalleryId),
       });
     }
   }
   if (newJobRef) {
     batch.update(newJobRef, {
-      galleryIds: admin.firestore.FieldValue.arrayUnion(cleanGalleryId),
+      galleryIds: FieldValue.arrayUnion(cleanGalleryId),
     });
   }
 
@@ -577,7 +786,7 @@ async function searchClients(query, { limit = 8 } = {}) {
   const batchSize = 500;
 
   while (true) {
-    let req = db.collection("clienti").orderBy(admin.firestore.FieldPath.documentId()).limit(batchSize);
+    let req = db.collection("clienti").orderBy(FieldPath.documentId()).limit(batchSize);
     if (cursor) {
       req = req.startAfter(cursor);
     }
@@ -816,16 +1025,16 @@ async function createGalleryRecord({ name, date = "", location = "" }) {
     chaptersEnabled: false,
     chapters: [],
     userId: "script-upload",
-    createdAt: admin.firestore.FieldValue.serverTimestamp(),
-    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    createdAt: FieldValue.serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
   }));
 
   await withRetry(() => db.collection("gallerySecrets").doc(galleryId).set({
     galleryId,
     password: null,
     specialPin: null,
-    createdAt: admin.firestore.FieldValue.serverTimestamp(),
-    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    createdAt: FieldValue.serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
   }));
 
   return {
@@ -943,8 +1152,8 @@ function createGalleryDocuments(fields) {
     selectionEnabled: selection.selectionEnabled,
     chaptersEnabled: false,
     chapters: [],
-    createdAt: admin.firestore.FieldValue.serverTimestamp(),
-    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    createdAt: FieldValue.serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
   };
 
   if (access.specialTheme) {
@@ -986,7 +1195,7 @@ function createGalleryDocuments(fields) {
     }
 
     if (selection.selectionDeadline) {
-      galleryData.selectionDeadline = admin.firestore.Timestamp.fromDate(selection.selectionDeadline);
+      galleryData.selectionDeadline = Timestamp.fromDate(selection.selectionDeadline);
       galleryData.selectionDeadlineEnforced = true;
     }
   }
@@ -994,8 +1203,8 @@ function createGalleryDocuments(fields) {
   const secretsData = {
     password: access.mode === "password" ? access.password : null,
     specialPin: access.mode === "theme" ? access.specialPin : null,
-    createdAt: admin.firestore.FieldValue.serverTimestamp(),
-    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    createdAt: FieldValue.serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
   };
 
   return { galleryData, secretsData };
@@ -1094,7 +1303,7 @@ async function uploadPhoto(filePath, galleryId, chapterId, onStage) {
         likeCount: 0,
         commentCount: 0,
         position: 0,
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        createdAt: FieldValue.serverTimestamp(),
       }),
     );
 
@@ -1382,8 +1591,8 @@ async function uploadJobs({
 
   await withRetry(() =>
     db.collection("galleries").doc(galleryId).update({
-      photoCount: admin.firestore.FieldValue.increment(counter.done),
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      photoCount: FieldValue.increment(counter.done),
+      updatedAt: FieldValue.serverTimestamp(),
     }),
   );
 
@@ -1408,6 +1617,7 @@ function createFsChaptersFromScan(chapters) {
     titolo: chapter.name,
     descrizione: chapter.description || "",
     ordine: chapter.ordine,
+    excludeFromSelection: chapter.excludeFromSelection === true,
     createdAt: new Date(),
     updatedAt: new Date(),
   }));
@@ -1415,7 +1625,7 @@ function createFsChaptersFromScan(chapters) {
   return fsChapters;
 }
 
-function applyChapterSettings(chapters, chapterSettings) {
+function applyChapterSettings(chapters, chapterSettings, { allowDuplicateTitles = false } = {}) {
   if (!Array.isArray(chapterSettings) || !chapterSettings.length) {
     return chapters;
   }
@@ -1436,7 +1646,7 @@ function applyChapterSettings(chapters, chapterSettings) {
         throw new Error(`Il capitolo "${chapter.name}" deve avere un titolo.`);
       }
       const titleKey = normalizeSearchText(title);
-      if (seenTitles.has(titleKey)) {
+      if (!allowDuplicateTitles && seenTitles.has(titleKey)) {
         throw new Error(`Titolo capitolo duplicato: "${title}".`);
       }
       seenTitles.add(titleKey);
@@ -1444,6 +1654,7 @@ function applyChapterSettings(chapters, chapterSettings) {
         ...chapter,
         name: title,
         description: String(setting?.description || "").trim(),
+        excludeFromSelection: setting?.excludeFromSelection === true,
         ordine: Number.isFinite(setting?.order) ? setting.order : originalIndex,
         originalIndex,
       };
@@ -1453,6 +1664,33 @@ function applyChapterSettings(chapters, chapterSettings) {
       const { originalIndex, ...clean } = chapter;
       return { ...clean, ordine: index };
     });
+}
+
+function mergeChaptersByName(chapters) {
+  const merged = [];
+  const byName = new Map();
+  for (const chapter of chapters) {
+    if (!chapter.name) {
+      merged.push(chapter);
+      continue;
+    }
+    const key = normalizeSearchText(chapter.name);
+    const existing = byName.get(key);
+    if (!existing) {
+      const copy = { ...chapter, photos: [...chapter.photos] };
+      byName.set(key, copy);
+      merged.push(copy);
+      continue;
+    }
+    existing.photos.push(...chapter.photos);
+    if (chapter.cover) {
+      if (!existing.cover) existing.cover = chapter.cover;
+      else existing.photos.push(chapter.cover);
+    }
+    existing.excludeFromSelection = existing.excludeFromSelection || chapter.excludeFromSelection;
+    if (!existing.description && chapter.description) existing.description = chapter.description;
+  }
+  return merged.map((chapter, index) => ({ ...chapter, ordine: index }));
 }
 
 function analyzeUploadFolders({ folder, folders } = {}) {
@@ -1485,8 +1723,9 @@ async function syncExistingChapters(galleryId, existingChapters, incomingChapter
       newChapters.push({
         id,
         titolo: chapter.name,
-        descrizione: "",
+        descrizione: chapter.description || "",
         ordine: existingChapters.length + newChapters.length,
+        excludeFromSelection: chapter.excludeFromSelection === true,
         createdAt: new Date(),
         updatedAt: new Date(),
       });
@@ -1500,7 +1739,7 @@ async function syncExistingChapters(galleryId, existingChapters, incomingChapter
       db.collection("galleries").doc(galleryId).update({
         chapters: allChapters,
         chaptersEnabled: true,
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
       }),
     );
   }
@@ -1604,7 +1843,7 @@ async function createAndUploadNewGallery({
     });
     if (jobRef) {
       batch.update(jobRef, {
-      galleryIds: admin.firestore.FieldValue.arrayUnion(galleryId),
+      galleryIds: FieldValue.arrayUnion(galleryId),
       });
     }
     return batch.commit();
@@ -1647,7 +1886,7 @@ async function createAndUploadNewGallery({
     await withRetry(() =>
       db.collection("galleries").doc(galleryId).update({
         chapters: updatedChapters,
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
       }),
     );
   }
@@ -1671,6 +1910,7 @@ async function addPhotosToExistingGallery({
   folders,
   skipDuplicates = true,
   customCovers = {},
+  chapterSettings = [],
   cancelToken,
   onProgress,
 }) {
@@ -1680,7 +1920,11 @@ async function addPhotosToExistingGallery({
   const hasCustomMobile = Boolean(customCovers && String(customCovers.mobilePath || "").trim());
   const coversOnlyMode = !hasUploadFolders(folder, folders) && (hasCustomDesktop || hasCustomMobile);
 
-  const chapters = coversOnlyMode ? [] : scanUploadFolders({ folder, folders });
+  const chapters = coversOnlyMode
+    ? []
+    : mergeChaptersByName(
+        applyChapterSettings(scanUploadFolders({ folder, folders }), chapterSettings, { allowDuplicateTitles: true }),
+      );
   if (!coversOnlyMode && !chapters.length) {
     throw new Error("Nessuna immagine trovata nella cartella selezionata.");
   }
@@ -1703,7 +1947,7 @@ async function addPhotosToExistingGallery({
   if (coversOnlyMode) {
     await withRetry(() =>
       db.collection("galleries").doc(galleryId).update({
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
       }),
     );
     return {
@@ -1747,7 +1991,7 @@ async function addPhotosToExistingGallery({
     await withRetry(() =>
       db.collection("galleries").doc(galleryId).update({
         chapters: updatedChapters,
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
       }),
     );
   }
@@ -1889,6 +2133,10 @@ module.exports = {
   createCancelToken,
   listGalleries,
   searchGalleries,
+  getGalleryDetails,
+  listGalleryPhotos,
+  updateGalleryChapters,
+  moveGalleryPhotos,
   updateGalleryAssociations,
   searchClients,
   listJobs,
@@ -1903,4 +2151,9 @@ module.exports = {
   isSpecialPinUnique,
   scanFolder,
   ensureFolderExists,
+  _test: {
+    normalizeStoredChapter,
+    applyChapterSettings,
+    mergeChaptersByName,
+  },
 };

@@ -225,6 +225,159 @@ label {
   background: #fff8ef;
 }
 
+.selected-gallery-card {
+  margin-top: 14px;
+  padding: 16px;
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  align-items: center;
+  border: 1px solid #b9d9cf;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #f7fffb, #fff8ef);
+}
+
+.selected-gallery-card.hidden {
+  display: none;
+}
+
+.selected-gallery-card h2 {
+  margin: 4px 0;
+  font-size: 1.25rem;
+}
+
+.gallery-url {
+  display: inline-block;
+  margin-top: 8px;
+  color: var(--accent-2);
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.82rem;
+  overflow-wrap: anywhere;
+}
+
+.wrap-actions {
+  flex-wrap: wrap;
+}
+
+.workflow-section {
+  margin-top: 16px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: #fff;
+  overflow: hidden;
+}
+
+.workflow-section > summary {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 14px 16px;
+  cursor: pointer;
+  background: #f4eee5;
+}
+
+.workflow-section > summary span,
+.workflow-label span {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.workflow-body {
+  padding: 14px;
+}
+
+.workflow-label {
+  margin-top: 18px;
+  padding: 11px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  border-left: 4px solid var(--accent-2);
+  background: #f7f2ea;
+}
+
+.workflow-accent {
+  background: #fff;
+}
+
+.section-divider {
+  margin: 18px 0;
+  border: 0;
+  border-top: 1px solid var(--line);
+}
+
+.organizer-toolbar {
+  display: grid;
+  grid-template-columns: minmax(180px, 2fr) minmax(180px, 1fr) auto auto;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.photo-organizer-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 9px;
+  max-height: 520px;
+  overflow: auto;
+  margin-top: 12px;
+  padding: 3px;
+}
+
+.organizer-photo {
+  position: relative;
+  display: block;
+  margin: 0;
+  border: 2px solid transparent;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #f4eee5;
+  cursor: pointer;
+}
+
+.organizer-photo.selected {
+  border-color: var(--accent-2);
+  box-shadow: 0 0 0 2px rgba(31, 111, 91, 0.15);
+}
+
+.organizer-photo input {
+  position: absolute;
+  z-index: 2;
+  top: 7px;
+  left: 7px;
+  width: 18px;
+  height: 18px;
+}
+
+.organizer-photo img {
+  width: 100%;
+  height: 105px;
+  display: block;
+  object-fit: cover;
+  background: #e7ded2;
+}
+
+.organizer-photo span {
+  display: block;
+  padding: 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.75rem;
+}
+
+.chapter-selection-toggle {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+
+.chapter-selection-toggle input {
+  width: auto;
+}
+
+.existing-chapter-card .chapter-delete {
+  justify-self: start;
+}
+
 .subpanel h3 {
   margin: 0 0 10px;
   font-size: 0.95rem;
@@ -479,7 +632,13 @@ label {
 
   .row.split,
   .form-grid,
-  .chapter-fields {
+  .chapter-fields,
+  .organizer-toolbar {
     grid-template-columns: 1fr;
+  }
+
+  .selected-gallery-card {
+    align-items: stretch;
+    flex-direction: column;
   }
 }
