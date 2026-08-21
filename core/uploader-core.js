@@ -2162,5 +2162,7 @@ module.exports = {
     normalizeStoredChapter,
     applyChapterSettings,
     mergeChaptersByName,
+    buildFirebaseDownloadUrl,
+    normalizePhotoName,
   },
 };
