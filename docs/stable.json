@@ -2,15 +2,15 @@
   "toolId": "image-studio-uploader",
   "productName": "Image Studio Uploader",
   "channel": "stable",
-  "version": "3.1.2",
-  "tag": "image-studio-uploader-v3.1.2",
-  "publishedAt": "2026-08-21T13:17:00+02:00",
-  "releaseUrl": "https://github.com/gennaromazza/ImageStudioUploader/releases/tag/image-studio-uploader-v3.1.2",
+  "version": "3.1.3",
+  "tag": "image-studio-uploader-v3.1.3",
+  "publishedAt": "2026-08-21T13:39:00+02:00",
+  "releaseUrl": "https://github.com/gennaromazza/ImageStudioUploader/releases/tag/image-studio-uploader-v3.1.3",
   "installer": {
-    "filename": "Image.Studio.Uploader.Setup.3.1.2.exe",
-    "url": "https://github.com/gennaromazza/ImageStudioUploader/releases/download/image-studio-uploader-v3.1.2/Image.Studio.Uploader.Setup.3.1.2.exe",
-    "size": 111114651,
-    "sha256": "98b13e921923ae29f2d302046108098463bc593c128b9ed844b8a442fb54f4d4",
+    "filename": "Image.Studio.Uploader.Setup.3.1.3.exe",
+    "url": "https://github.com/gennaromazza/ImageStudioUploader/releases/download/image-studio-uploader-v3.1.3/Image.Studio.Uploader.Setup.3.1.3.exe",
+    "size": 111114968,
+    "sha256": "679657414cca32750b488fad9b45a9284f5ea823b9ad14c46df37aaa08e7ed2b",
     "signature": "NotSigned"
   },
   "compatibility": {
