@@ -12,6 +12,26 @@ test("il core si importa senza credenziali Firebase", () => {
   assert.equal(typeof analyzeUploadFolders, "function");
 });
 
+
+test("genera un URL Firebase stabile per le foto caricate", () => {
+  const url = _test.buildFirebaseDownloadUrl(
+    "memoriesospese.appspot.com",
+    "galleries/galleria-1/photos/foto estate.jpg",
+    "download-token",
+  );
+  assert.equal(
+    url,
+    "https://firebasestorage.googleapis.com/v0/b/memoriesospese.appspot.com/o/galleries%2Fgalleria-1%2Fphotos%2Ffoto%20estate.jpg?alt=media&token=download-token",
+  );
+  assert.equal(url.includes("GoogleAccessId"), false);
+});
+
+test("normalizza i nomi web e desktop per il controllo duplicati", () => {
+  assert.equal(_test.normalizePhotoName("1740000000000-foto.jpg"), "foto.jpg");
+  assert.equal(_test.normalizePhotoName("1740000000000_Ab12Cd-foto.jpg"), "foto.jpg");
+  assert.equal(_test.normalizePhotoName("foto.jpg"), "foto.jpg");
+});
+
 test("normalizza capitoli web storici e mantiene excludeFromSelection", () => {
   assert.deepEqual(_test.normalizeStoredChapter({
     id: "cerimonia",
