@@ -6,6 +6,7 @@ const { getStorage } = require("firebase-admin/storage");
 const fs = require("fs");
 const os = require("os");
 const path = require("path");
+const { randomUUID } = require("crypto");
 const sharp = require("sharp");
 const { getFirebaseConfig, GALLERY_URL } = require("../config/firebase-config");
 
@@ -32,7 +33,6 @@ const THEMES = [
 ];
 
 const MAX_PARALLEL = 3;
-const SIGNED_URL_EXPIRY = "2099-01-01";
 const WEB_MAX_EDGE = 3200;
 const WEB_JPEG_QUALITY = 86;
 const WEB_WEBP_QUALITY = 88;
@@ -72,6 +72,15 @@ function initFirebase() {
 function nanoid(n = 8) {
   const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
   return Array.from({ length: n }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
+}
+
+function buildFirebaseDownloadUrl(bucketName, storagePath, token) {
+  return "https://firebasestorage.googleapis.com/v0/b/" + bucketName + "/o/" + encodeURIComponent(storagePath) + "?alt=media&token=" + token;
+}
+
+function normalizePhotoName(name) {
+  const raw = path.basename(String(name || "")).trim().toLowerCase();
+  return raw.replace(/^\d+(?:[_-][a-z0-9]+)?[-_]/i, "");
 }
 
 function mime(file) {
@@ -1272,28 +1281,29 @@ async function uploadPhoto(filePath, galleryId, chapterId, onStage) {
   const contentType = prepared.contentType;
 
   try {
+    const downloadToken = randomUUID();
     onStage?.("upload_start", original);
     await withRetry(() =>
       bucket.upload(prepared.uploadPath, {
         destination: storagePath,
-        metadata: { contentType },
+        metadata: {
+          contentType,
+          metadata: { firebaseStorageDownloadTokens: downloadToken },
+        },
         resumable: true,
       }),
     );
     onStage?.("upload_done", original);
 
-    const [url] = await withRetry(() =>
-      bucket.file(storagePath).getSignedUrl({
-        action: "read",
-        expires: SIGNED_URL_EXPIRY,
-      }),
-    );
+    const url = buildFirebaseDownloadUrl(bucket.name, storagePath, downloadToken);
 
     const ref = await withRetry(() =>
       db.collection("photos").add({
         galleryId,
         chapterId: chapterId || null,
         name: original,
+        originalName: original,
+        storagePath,
         url,
         size: prepared.optimizedSize,
         contentType,
@@ -1317,30 +1327,25 @@ async function uploadPhoto(filePath, galleryId, chapterId, onStage) {
 async function uploadGalleryCover(filePath, galleryId) {
   const { bucket } = initFirebase();
   const prepared = await prepareUploadAsset(filePath);
-  const storagePath = `galleries/${galleryId}/cover/cover-${Date.now()}${prepared.outputExt}`;
+  const storagePath = "galleries/" + galleryId + "/cover/cover-" + Date.now() + prepared.outputExt;
+  const downloadToken = randomUUID();
 
   try {
     await withRetry(() =>
       bucket.upload(prepared.uploadPath, {
         destination: storagePath,
-        metadata: { contentType: prepared.contentType },
+        metadata: {
+          contentType: prepared.contentType,
+          metadata: { firebaseStorageDownloadTokens: downloadToken },
+        },
         resumable: true,
       }),
     );
-
-    const [url] = await withRetry(() =>
-      bucket.file(storagePath).getSignedUrl({
-        action: "read",
-        expires: SIGNED_URL_EXPIRY,
-      }),
-    );
-
-    return url;
+    return buildFirebaseDownloadUrl(bucket.name, storagePath, downloadToken);
   } finally {
-    prepared.cleanup?.();
+    await prepared.cleanup();
   }
 }
-
 async function resolveGalleryCoverUrls(galleryId, chapters, customCovers) {
   const desktopCustom = customCovers && customCovers.desktopPath ? String(customCovers.desktopPath).trim() : "";
   const mobileCustom = customCovers && customCovers.mobilePath ? String(customCovers.mobilePath).trim() : "";
@@ -1397,9 +1402,10 @@ async function getExistingPhotoNames(galleryId) {
   const snap = await withRetry(() => db.collection("photos").where("galleryId", "==", galleryId).get());
   const names = new Set();
   snap.forEach((doc) => {
-    const name = doc.data().name;
+    const data = doc.data();
+    const name = data.originalName || data.name;
     if (name) {
-      names.add(String(name).toLowerCase());
+      names.add(normalizePhotoName(name));
     }
   });
   existingPhotoNamesCache.set(galleryId, {
@@ -1433,7 +1439,7 @@ function buildJobsFromChapters(chapters, chapterMap = {}, existingNameSet = null
     }
 
     for (const photoPath of chapter.photos) {
-      const nameLower = path.basename(photoPath).toLowerCase();
+      const nameLower = normalizePhotoName(path.basename(photoPath));
       if (existingNameSet && existingNameSet.has(nameLower)) {
         skippedDuplicates += 1;
         skippedDuplicateFiles.push(
