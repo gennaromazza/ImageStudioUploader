@@ -21,6 +21,12 @@ test("la UI espone link, gestione capitoli e organizer", () => {
   }
 });
 
+test("il flusso guidato conserva il messaggio di avanzamento", () => {
+  const renderer = fs.readFileSync(path.join(projectRoot, "electron", "renderer", "renderer.js"), "utf8");
+  assert.match(renderer, /message: null/);
+  assert.match(renderer, /flow\.message = message/);
+});
+
 test("IPC e preload espongono soltanto le operazioni previste", () => {
   const preload = fs.readFileSync(path.join(projectRoot, "electron", "preload.js"), "utf8");
   const main = fs.readFileSync(path.join(projectRoot, "electron", "main.js"), "utf8");
