@@ -1,6 +1,6 @@
 {
   "name": "image-studio-uploader",
-  "version": "3.1.1",
+  "version": "3.1.2",
   "description": "Uploader gallerie Image Studio con GUI desktop",
   "author": "Image Studio",
   "main": "electron/main.js",
