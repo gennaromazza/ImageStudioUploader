@@ -2,22 +2,16 @@
   "toolId": "image-studio-uploader",
   "productName": "Image Studio Uploader",
   "channel": "stable",
-  "version": "3.1.0",
-  "tag": "image-studio-uploader-v3.1.0",
-  "publishedAt": "2026-08-11T18:50:19+02:00",
-  "releaseUrl": "https://github.com/gennaromazza/ImageStudioUploader/releases/tag/image-studio-uploader-v3.1.0",
+  "version": "3.1.2",
+  "tag": "image-studio-uploader-v3.1.2",
+  "publishedAt": "2026-08-21T13:17:00+02:00",
+  "releaseUrl": "https://github.com/gennaromazza/ImageStudioUploader/releases/tag/image-studio-uploader-v3.1.2",
   "installer": {
-    "filename": "Image.Studio.Uploader.Setup.3.1.0.exe",
-    "url": "https://github.com/gennaromazza/ImageStudioUploader/releases/download/image-studio-uploader-v3.1.0/Image.Studio.Uploader.Setup.3.1.0.exe",
-    "size": 111111656,
-    "sha256": "42DF1611F03AE688DC00A28BFC240E04F3F543CA243718AF59CA6C4B07C444CD",
+    "filename": "Image.Studio.Uploader.Setup.3.1.2.exe",
+    "url": "https://github.com/gennaromazza/ImageStudioUploader/releases/download/image-studio-uploader-v3.1.2/Image.Studio.Uploader.Setup.3.1.2.exe",
+    "size": 111114651,
+    "sha256": "98b13e921923ae29f2d302046108098463bc593c128b9ed844b8a442fb54f4d4",
     "signature": "NotSigned"
-  },
-  "blockmap": {
-    "filename": "Image.Studio.Uploader.Setup.3.1.0.exe.blockmap",
-    "url": "https://github.com/gennaromazza/ImageStudioUploader/releases/download/image-studio-uploader-v3.1.0/Image.Studio.Uploader.Setup.3.1.0.exe.blockmap",
-    "size": 116980,
-    "sha256": "0D870A30986277D54B4001FC52D2700DD8249BED6D252AA021A08D461315A189"
   },
   "compatibility": {
     "webApplication": "https://github.com/gennaromazza/memoriesospese",
