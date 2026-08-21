@@ -6,7 +6,7 @@ on:
       - "image-studio-uploader-v*"
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   release:
@@ -38,3 +38,14 @@ jobs:
             dist/*.exe
             dist/*.exe.blockmap
           if-no-files-found: error
+      - name: Crea o aggiorna la GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: Image Studio Uploader ${{ github.ref_name }}
+          generate_release_notes: true
+          overwrite_files: true
+          fail_on_unmatched_files: true
+          files: |
+            dist/*.exe
+            dist/*.exe.blockmap
