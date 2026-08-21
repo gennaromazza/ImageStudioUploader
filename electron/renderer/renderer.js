@@ -137,6 +137,193 @@ const els = {
   duplicateSkip: document.getElementById("duplicate-skip"),
 };
 
+const guidedFlows = {};
+
+function createWizardItem(label, value) {
+  const item = document.createElement("div");
+  item.className = "wizard-review-item";
+  const key = document.createElement("span");
+  key.textContent = label;
+  const text = document.createElement("strong");
+  text.textContent = value;
+  item.append(key, text);
+  return item;
+}
+
+function updateGuidedReview(mode) {
+  const flow = guidedFlows[mode];
+  if (!flow) return;
+  const review = flow.review;
+  review.replaceChildren();
+  const title = document.createElement("h3");
+  title.textContent = "Pronto per il caricamento";
+  const intro = document.createElement("p");
+  intro.className = "muted compact-text";
+  intro.textContent = "Controlla questi dati essenziali prima di avviare l’upload.";
+  const list = document.createElement("div");
+  list.className = "wizard-review-list";
+
+  if (mode === "existing") {
+    const gallery = state.selectedGallery || {};
+    const folders = getFolderSelection(els.existingFolder);
+    list.append(
+      createWizardItem("Galleria", gallery.name || "Da selezionare"),
+      createWizardItem("Cartelle foto", folders.length ? folders.length + " selezionata/e" : "Da selezionare"),
+      createWizardItem("Capitoli rilevati", String(state.existingChapterSettings.length || 0)),
+      createWizardItem("Duplicati", els.skipDuplicates.checked ? "Saranno saltati" : "Saranno caricati")
+    );
+  } else {
+    const folders = getFolderSelection(els.newFolder);
+    list.append(
+      createWizardItem("Nome galleria", els.newName.value.trim() || "Da compilare"),
+      createWizardItem("Cartelle foto", folders.length ? folders.length + " selezionata/e" : "Da selezionare"),
+      createWizardItem("Capitoli rilevati", String(state.chapterSettings.length || 0)),
+      createWizardItem("Copertine", (els.newCoverDesktop.value || els.newCoverMobile.value) ? "Personalizzate" : "Automatiche")
+    );
+  }
+  review.append(title, intro, list);
+}
+
+function showGuidedMessage(mode, message) {
+  const flow = guidedFlows[mode];
+  if (flow) flow.message.textContent = message || "";
+}
+
+function canAdvanceGuidedFlow(mode, step) {
+  if (mode === "existing" && step === 0 && !state.selectedGalleryId) {
+    showGuidedMessage(mode, "Prima scegli una galleria dall’elenco.");
+    return false;
+  }
+  if (mode === "existing" && step === 1 && !getFolderSelection(els.existingFolder).length) {
+    showGuidedMessage(mode, "Seleziona almeno una cartella di foto per continuare.");
+    return false;
+  }
+  if (mode === "new" && step === 0 && !els.newName.value.trim()) {
+    showGuidedMessage(mode, "Inserisci il nome della nuova galleria.");
+    return false;
+  }
+  if (mode === "new" && step === 0 && !getFolderSelection(els.newFolder).length) {
+    showGuidedMessage(mode, "Seleziona almeno una cartella di foto per continuare.");
+    return false;
+  }
+  return true;
+}
+
+function renderGuidedFlow(mode, requestedStep) {
+  const flow = guidedFlows[mode];
+  if (!flow) return;
+  if (Number.isInteger(requestedStep)) flow.current = Math.max(0, Math.min(requestedStep, flow.steps.length - 1));
+  flow.steps.forEach((step, index) => {
+    const active = index === flow.current;
+    step.panel.hidden = !active;
+    step.nav.classList.toggle("active", active);
+    step.nav.classList.toggle("complete", index < flow.current);
+    step.nav.disabled = index > flow.current;
+    step.nav.setAttribute("aria-current", active ? "step" : "false");
+  });
+  showGuidedMessage(mode, "");
+  if (flow.current === flow.steps.length - 1) updateGuidedReview(mode);
+}
+
+function setupGuidedFlow(tab, mode, steps) {
+  if (!tab || guidedFlows[mode]) return;
+  const flow = { mode, current: 0, steps: [], review: document.createElement("section") };
+  const shell = document.createElement("div");
+  shell.className = "guided-flow";
+  const heading = document.createElement("div");
+  heading.className = "guided-flow-heading";
+  const title = document.createElement("h2");
+  title.textContent = mode === "existing" ? "Aggiungi foto a una galleria" : "Crea una nuova galleria";
+  const subtitle = document.createElement("p");
+  subtitle.className = "muted";
+  subtitle.textContent = "Segui un passaggio alla volta: le impostazioni meno frequenti restano disponibili, senza rallentarti.";
+  heading.append(title, subtitle);
+  const progress = document.createElement("nav");
+  progress.className = "wizard-progress";
+  progress.setAttribute("aria-label", "Avanzamento procedura");
+  const message = document.createElement("p");
+  message.className = "wizard-message";
+  const content = document.createElement("div");
+  content.className = "wizard-content";
+  shell.append(heading, progress, message, content);
+
+  steps.forEach((definition, index) => {
+    const nav = document.createElement("button");
+    nav.type = "button";
+    nav.className = "wizard-progress-item";
+    nav.innerHTML = "<span>" + (index + 1) + "</span><strong>" + definition.title + "</strong>";
+    nav.addEventListener("click", () => { if (index <= flow.current) renderGuidedFlow(mode, index); });
+    progress.appendChild(nav);
+
+    const panel = document.createElement("section");
+    panel.className = "wizard-step";
+    const panelHeading = document.createElement("div");
+    panelHeading.className = "wizard-step-heading";
+    panelHeading.innerHTML = "<p class=\"eyebrow\">PASSAGGIO " + (index + 1) + "</p><h2>" + definition.title + "</h2><p class=\"muted\">" + definition.description + "</p>";
+    panel.appendChild(panelHeading);
+    if (index === steps.length - 1) {
+      flow.review.className = "wizard-review";
+      panel.appendChild(flow.review);
+    }
+    definition.nodes.filter(Boolean).forEach((node) => panel.appendChild(node));
+    const controls = document.createElement("div");
+    controls.className = "wizard-controls";
+    if (index > 0) {
+      const back = document.createElement("button");
+      back.type = "button";
+      back.className = "btn secondary";
+      back.textContent = "Indietro";
+      back.addEventListener("click", () => renderGuidedFlow(mode, index - 1));
+      controls.appendChild(back);
+    }
+    if (index < steps.length - 1) {
+      const next = document.createElement("button");
+      next.type = "button";
+      next.className = "btn primary";
+      next.textContent = "Continua";
+      next.addEventListener("click", () => { if (canAdvanceGuidedFlow(mode, index)) renderGuidedFlow(mode, index + 1); });
+      controls.appendChild(next);
+    }
+    panel.appendChild(controls);
+    content.appendChild(panel);
+    flow.steps.push({ panel, nav });
+  });
+
+  tab.replaceChildren(shell);
+  guidedFlows[mode] = flow;
+  renderGuidedFlow(mode, 0);
+}
+
+function setupGuidedFlows() {
+  const existingWorkflow = els.existingChaptersEditor.closest(".workflow-section");
+  const existingWorkflowSummary = existingWorkflow && existingWorkflow.querySelector("summary");
+  if (existingWorkflowSummary) existingWorkflowSummary.innerHTML = "<strong>Gestisci le foto già presenti</strong><span>Facoltativo: capitoli e spostamenti di foto già caricate.</span>";
+  if (existingWorkflow) existingWorkflow.removeAttribute("open");
+
+  const existingFolderRow = els.existingFolder.closest(".row.split");
+  const existingMapping = els.existingUploadChapters.closest(".subpanel");
+  const existingCovers = els.existingCoverDesktop.closest(".subpanel");
+  const existingAssociations = els.existingClientSearch.closest(".subpanel");
+  const existingActions = els.uploadExisting.closest(".actions");
+  setupGuidedFlow(els.tabExisting, "existing", [
+    { title: "Scegli la galleria", description: "Cerca e seleziona la galleria che vuoi aggiornare.", nodes: [els.gallerySearch.closest(".toolbar"), els.galleryList.closest(".table-wrap"), els.selectedGalleryCard] },
+    { title: "Scegli le foto", description: "Seleziona le cartelle da caricare. Le cartelle diventano capitoli in automatico.", nodes: [existingFolderRow, existingMapping] },
+    { title: "Personalizza (facoltativo)", description: "Usa queste opzioni solo quando ti servono: non sono necessarie per caricare le foto.", nodes: [existingWorkflow, existingCovers, existingAssociations] },
+    { title: "Controlla e carica", description: "Rivedi i dati essenziali e avvia l’upload.", nodes: [existingActions] },
+  ]);
+
+  const newForm = els.newName.closest(".form-grid");
+  const newChapters = els.chaptersEditor.closest(".subpanel");
+  const newActions = els.uploadNew.closest(".actions");
+  const optionalNewNodes = Array.from(els.tabNew.children).filter((node) => node !== newForm && node !== newChapters && node !== newActions);
+  setupGuidedFlow(els.tabNew, "new", [
+    { title: "Dati e fotografie", description: "Inserisci il nome della galleria e scegli la cartella delle foto.", nodes: [newForm] },
+    { title: "Capitoli", description: "Controlla i capitoli creati dalle sottocartelle. Puoi anche lasciarli così come sono.", nodes: [newChapters] },
+    { title: "Impostazioni facoltative", description: "Copertine, cliente, accesso e selezione foto sono disponibili solo se ti servono.", nodes: optionalNewNodes },
+    { title: "Controlla e crea", description: "Rivedi i dati essenziali e crea la galleria con le foto.", nodes: [newActions] },
+  ]);
+}
+
 function switchTab(tabName) {
   state.activeTab = tabName;
 
@@ -148,6 +335,7 @@ function switchTab(tabName) {
 
   els.tabExisting.classList.toggle("active", tabName === "existing");
   els.tabNew.classList.toggle("active", tabName === "new");
+  renderGuidedFlow(tabName);
 }
 
 function resetSummary() {
@@ -1539,6 +1727,7 @@ window.galleryApi.onUploadDone(async (evt) => {
 });
 
 async function boot() {
+  setupGuidedFlows();
   attachListeners();
   switchTab("existing");
   setUploadUIBusy(false);
